@@ -23,7 +23,7 @@ export default function LoginPage() {
     });
 
     if (authError) {
-      setError("E-mail ou senha inválidos. Tente novamente.");
+      setError("E-mail ou senha inválidos. Se for o primeiro acesso, redefina a senha no Supabase Auth.");
       setLoading(false);
     } else {
       router.push("/dashboard");
@@ -206,7 +206,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Demo credentials hint */}
           <div style={{
             marginTop: "20px",
             padding: "12px",
@@ -216,8 +215,8 @@ export default function LoginPage() {
             fontSize: "11px",
             color: "var(--text-muted)",
           }}>
-            <strong style={{ color: "var(--text-secondary)" }}>🔑 Demo:</strong>{" "}
-            admin@inovy.com / admin123
+            <strong style={{ color: "var(--text-secondary)" }}>🔐 Primeiro acesso:</strong>{" "}
+            entre com um usuário válido do Supabase Auth e altere a senha após o login.
           </div>
         </div>
 
