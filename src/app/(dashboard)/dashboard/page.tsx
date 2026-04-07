@@ -261,6 +261,7 @@ export default async function DashboardPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {[
                 { href: "/encomendas", icon: "📦", label: "Nova Encomenda" },
+                { href: "/caixa", icon: "🧾", label: "Receber no Caixa" },
                 { href: "/logistica", icon: "🚚", label: "Registrar Entrega" },
                 { href: "/financeiro", icon: "💸", label: "Processar Repasse" },
                 { href: "/relatorios", icon: "📊", label: "Gerar Relatório" },

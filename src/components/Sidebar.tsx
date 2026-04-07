@@ -18,6 +18,7 @@ const mainNavItems: NavItem[] = [
 ];
 
 const financeNavItems: NavItem[] = [
+  { icon: "🧾", label: "Caixa", href: "/caixa" },
   { icon: "💰", label: "Financeiro", href: "/financeiro" },
   { icon: "📊", label: "Relatórios", href: "/relatorios" },
 ];

@@ -37,6 +37,7 @@ export async function updateSession(request: NextRequest) {
                            request.nextUrl.pathname.startsWith('/encomendas') || 
                            request.nextUrl.pathname.startsWith('/logistica') || 
                            request.nextUrl.pathname.startsWith('/empresas') || 
+                           request.nextUrl.pathname.startsWith('/caixa') || 
                            request.nextUrl.pathname.startsWith('/financeiro') || 
                            request.nextUrl.pathname.startsWith('/relatorios') || 
                            request.nextUrl.pathname.startsWith('/configuracoes')
