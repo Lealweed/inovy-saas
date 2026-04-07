@@ -78,8 +78,8 @@ export default function ConfiguracoesPage() {
             </div>
             <div style={{
               padding: "10px 14px",
-              background: "rgba(99,102,241,0.06)",
-              border: "1px solid rgba(99,102,241,0.12)",
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.08)",
               borderRadius: "8px",
               fontSize: "12px",
               color: "var(--text-muted)",

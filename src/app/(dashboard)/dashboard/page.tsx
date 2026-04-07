@@ -238,7 +238,7 @@ export default function DashboardPage() {
                 { href: "/encomendas/nova", icon: "📦", label: "Nova Encomenda", color: "var(--brand-primary)" },
                 { href: "/logistica", icon: "🚚", label: "Registrar Entrega", color: "#38bdf8" },
                 { href: "/financeiro", icon: "💸", label: "Processar Repasse", color: "var(--brand-success)" },
-                { href: "/relatorios", icon: "📊", label: "Gerar Relatório", color: "#a78bfa" },
+                { href: "/relatorios", icon: "📊", label: "Gerar Relatório", color: "#f5f5f5" },
               ].map((action) => (
                 <a
                   key={action.href}

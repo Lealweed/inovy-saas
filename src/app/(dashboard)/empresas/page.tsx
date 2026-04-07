@@ -126,8 +126,8 @@ export default function EmpresasPage() {
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--text-muted)" }}>💹 Comissão Inovy</span>
                 <span style={{
-                  background: "rgba(99,102,241,0.15)",
-                  color: "var(--brand-primary-light)",
+                  background: "rgba(255,255,255,0.08)",
+                  color: "var(--text-primary)",
                   padding: "2px 8px",
                   borderRadius: "6px",
                   fontWeight: "700",

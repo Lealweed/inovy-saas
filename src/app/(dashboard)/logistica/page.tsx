@@ -63,9 +63,9 @@ export default function LogisticaPage() {
             key={t}
             className="btn"
             style={{
-              background: tab === t ? "rgba(99,102,241,0.15)" : "var(--bg-surface)",
-              color: tab === t ? "var(--brand-primary-light)" : "var(--text-muted)",
-              border: `1px solid ${tab === t ? "rgba(99,102,241,0.3)" : "var(--border-subtle)"}`,
+              background: tab === t ? "rgba(255,255,255,0.08)" : "var(--bg-surface)",
+              color: tab === t ? "var(--text-primary)" : "var(--text-muted)",
+              border: `1px solid ${tab === t ? "rgba(255,255,255,0.14)" : "var(--border-subtle)"}`,
             }}
             onClick={() => setTab(t)}
           >

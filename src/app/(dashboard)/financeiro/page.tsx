@@ -69,9 +69,9 @@ export default function FinanceiroPage() {
                 key={periodo}
                 className="btn btn-sm"
                 style={{
-                  background: periodo === "Mar/2026" ? "rgba(99,102,241,0.15)" : "var(--bg-elevated)",
-                  color: periodo === "Mar/2026" ? "var(--brand-primary-light)" : "var(--text-muted)",
-                  border: `1px solid ${periodo === "Mar/2026" ? "rgba(99,102,241,0.3)" : "var(--border-subtle)"}`,
+                  background: periodo === "Mar/2026" ? "rgba(255,255,255,0.08)" : "var(--bg-elevated)",
+                  color: periodo === "Mar/2026" ? "var(--text-primary)" : "var(--text-muted)",
+                  border: `1px solid ${periodo === "Mar/2026" ? "rgba(255,255,255,0.14)" : "var(--border-subtle)"}`,
                 }}
               >
                 {periodo}
@@ -154,7 +154,7 @@ export default function FinanceiroPage() {
         }}>
           {[
             { label: "Total Bruto", value: "R$ 55.035,00", color: "var(--text-primary)" },
-            { label: "Total Comissões Inovy", value: "R$ 8.014,50", color: "#a78bfa" },
+            { label: "Total Comissões Inovy", value: "R$ 8.014,50", color: "var(--text-primary)" },
             { label: "Total Repasses", value: "R$ 47.020,50", color: "var(--brand-success)" },
           ].map((total, i) => (
             <div key={i}>

@@ -257,9 +257,9 @@ export default function EncomendasPage() {
                 onClick={() => setStatusFilter(f.value)}
                 className="btn btn-sm"
                 style={{
-                  background: statusFilter === f.value ? "rgba(99,102,241,0.2)" : "var(--bg-elevated)",
-                  color: statusFilter === f.value ? "var(--brand-primary-light)" : "var(--text-secondary)",
-                  border: `1px solid ${statusFilter === f.value ? "rgba(99,102,241,0.4)" : "var(--border-subtle)"}`,
+                  background: statusFilter === f.value ? "rgba(255,255,255,0.08)" : "var(--bg-elevated)",
+                  color: statusFilter === f.value ? "var(--text-primary)" : "var(--text-secondary)",
+                  border: `1px solid ${statusFilter === f.value ? "rgba(255,255,255,0.14)" : "var(--border-subtle)"}`,
                 }}
               >
                 {f.label}
@@ -348,9 +348,9 @@ export default function EncomendasPage() {
                             title="Gerar Etiqueta"
                             onClick={() => handleOpenEtiqueta(enc)}
                             style={{
-                              background: "rgba(99,102,241,0.1)",
-                              color: "var(--brand-primary-light)",
-                              border: "1px solid rgba(99,102,241,0.2)",
+                              background: "rgba(255,255,255,0.06)",
+                              color: "var(--text-primary)",
+                              border: "1px solid rgba(255,255,255,0.12)",
                               fontSize: "11px",
                               gap: "4px",
                               padding: "4px 8px",

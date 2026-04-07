@@ -86,7 +86,7 @@ export default function EtiquetaModal({ data, onClose }: Props) {
           .logo-box {
             width: 28px;
             height: 28px;
-            background: linear-gradient(135deg, #6366f1, #0ea5e9);
+            background: linear-gradient(135deg, #111111, #525252);
             border-radius: 6px;
             display: flex;
             align-items: center;
@@ -106,7 +106,7 @@ export default function EtiquetaModal({ data, onClose }: Props) {
             font-size: 11px;
             font-family: monospace;
             font-weight: 700;
-            color: #a5b4fc;
+            color: #d4d4d4;
             letter-spacing: 0.5px;
           }
 
@@ -185,7 +185,7 @@ export default function EtiquetaModal({ data, onClose }: Props) {
 
           .arrow-icon {
             font-size: 18px;
-            color: #6366f1;
+            color: #111111;
             flex-shrink: 0;
           }
 
@@ -498,7 +498,7 @@ export default function EtiquetaModal({ data, onClose }: Props) {
                   <div style={{
                     width: "32px",
                     height: "32px",
-                    background: "linear-gradient(135deg, #6366f1, #0ea5e9)",
+                    background: "linear-gradient(135deg, #111111, #525252)",
                     borderRadius: "7px",
                     display: "flex",
                     alignItems: "center",
@@ -517,7 +517,7 @@ export default function EtiquetaModal({ data, onClose }: Props) {
                   fontSize: "11px",
                   fontFamily: "monospace",
                   fontWeight: "700",
-                  color: "#a5b4fc",
+                  color: "#d4d4d4",
                   letterSpacing: "0.5px",
                 }}>
                   {data.id}
@@ -589,7 +589,7 @@ export default function EtiquetaModal({ data, onClose }: Props) {
                     <div style={{ fontSize: "9px", textTransform: "uppercase", color: "#9ca3af", letterSpacing: "0.5px" }}>Origem</div>
                     <div style={{ fontSize: "12px", fontWeight: "600", color: "#374151" }}>{data.remetenteCidade || "—"}</div>
                   </div>
-                  <div style={{ fontSize: "22px", color: "#6366f1" }}>→</div>
+                  <div style={{ fontSize: "22px", color: "#111111" }}>→</div>
                   <div style={{ flex: 1, textAlign: "right" }}>
                     <div style={{ fontSize: "9px", textTransform: "uppercase", color: "#9ca3af", letterSpacing: "0.5px" }}>Destino</div>
                     <div style={{ fontSize: "12px", fontWeight: "600", color: "#374151" }}>{data.destinatarioCidade}</div>
@@ -598,7 +598,7 @@ export default function EtiquetaModal({ data, onClose }: Props) {
 
                 {/* Destinatário */}
                 <div style={{ marginBottom: "12px" }}>
-                  <div style={{ fontSize: "9px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.8px", color: "#6366f1", marginBottom: "3px" }}>
+                  <div style={{ fontSize: "9px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.8px", color: "#111111", marginBottom: "3px" }}>
                     📥 Destinatário
                   </div>
                   <div style={{ fontSize: "15px", fontWeight: "800", color: "#1a1a2e" }}>{data.destinatario}</div>
@@ -707,7 +707,7 @@ export default function EtiquetaModal({ data, onClose }: Props) {
                 background: "#fafafa",
                 borderTop: "1px solid #e5e7f0",
               }}>
-                Entregue por <strong style={{ color: "#374151" }}>{data.empresa}</strong> · Plataforma <strong style={{ color: "#6366f1" }}>Inovy</strong>
+                Entregue por <strong style={{ color: "#374151" }}>{data.empresa}</strong> · Plataforma <strong style={{ color: "#111111" }}>Inovy</strong>
               </div>
             </div>
           </div>
@@ -783,8 +783,8 @@ export default function EtiquetaModal({ data, onClose }: Props) {
               <div style={{
                 marginTop: "12px",
                 padding: "10px",
-                background: "rgba(99,102,241,0.06)",
-                border: "1px solid rgba(99,102,241,0.1)",
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.08)",
                 borderRadius: "8px",
                 fontSize: "11px",
                 color: "var(--text-muted)",

@@ -46,9 +46,9 @@ export default function LoginPage() {
         position: "absolute",
         inset: 0,
         backgroundImage: `
-          radial-gradient(ellipse at 20% 20%, rgba(99,102,241,0.12) 0%, transparent 50%),
-          radial-gradient(ellipse at 80% 80%, rgba(14,165,233,0.08) 0%, transparent 50%),
-          radial-gradient(ellipse at 50% 50%, rgba(99,102,241,0.04) 0%, transparent 80%)
+          radial-gradient(ellipse at 20% 20%, rgba(255,255,255,0.08) 0%, transparent 50%),
+          radial-gradient(ellipse at 80% 80%, rgba(255,255,255,0.05) 0%, transparent 50%),
+          radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0.03) 0%, transparent 80%)
         `,
         pointerEvents: "none",
       }} />
@@ -58,8 +58,8 @@ export default function LoginPage() {
         position: "absolute",
         inset: 0,
         backgroundImage: `
-          linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px)
+          linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)
         `,
         backgroundSize: "40px 40px",
         pointerEvents: "none",
@@ -78,9 +78,9 @@ export default function LoginPage() {
             justifyContent: "center",
             fontSize: "24px",
             fontWeight: "800",
-            color: "white",
+            color: "var(--text-inverse)",
             margin: "0 auto 16px",
-            boxShadow: "0 0 40px rgba(99,102,241,0.4), 0 8px 20px rgba(99,102,241,0.2)",
+            boxShadow: "0 0 32px rgba(255,255,255,0.10), 0 8px 20px rgba(0,0,0,0.35)",
             letterSpacing: "-1px",
           }}>
             In
@@ -108,7 +108,7 @@ export default function LoginPage() {
           border: "1px solid var(--border-subtle)",
           borderRadius: "20px",
           padding: "32px",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,102,241,0.05)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04)",
         }}>
           <div style={{ marginBottom: "24px" }}>
             <h2 style={{
@@ -193,8 +193,8 @@ export default function LoginPage() {
                   <div style={{
                     width: "14px",
                     height: "14px",
-                    border: "2px solid rgba(255,255,255,0.3)",
-                    borderTopColor: "white",
+                    border: "2px solid rgba(0,0,0,0.2)",
+                    borderTopColor: "var(--text-inverse)",
                     borderRadius: "50%",
                     animation: "spin 0.7s linear infinite",
                   }} />
@@ -210,8 +210,8 @@ export default function LoginPage() {
           <div style={{
             marginTop: "20px",
             padding: "12px",
-            background: "rgba(99,102,241,0.06)",
-            border: "1px solid rgba(99,102,241,0.12)",
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.08)",
             borderRadius: "8px",
             fontSize: "11px",
             color: "var(--text-muted)",
