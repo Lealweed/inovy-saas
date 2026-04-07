@@ -1,203 +1,204 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import EtiquetaModal, { EtiquetaData } from "@/components/EtiquetaModal";
+import { createClient } from "@/lib/supabase/client";
+import { formatCurrencyBRL, formatDateBR, formatWeightKg } from "@/lib/formatters";
 
-const statusMap: Record<string, { label: string; class: string }> = {
+const statusMap = {
   pendente: { label: "Pendente", class: "badge-warning" },
   coletado: { label: "Coletado", class: "badge-default" },
   em_transito: { label: "Em Trânsito", class: "badge-info" },
   aguardando_retirada: { label: "Ag. Retirada", class: "badge-warning" },
   entregue: { label: "Entregue", class: "badge-success" },
   cancelado: { label: "Cancelado", class: "badge-danger" },
-};
-
-const mockData = [
-  {
-    id: "ENC-20480",
-    remetente: "João Silva",
-    remetenteEndereco: "Rua das Flores, 123",
-    remetenteCidade: "São Paulo, SP",
-    destinatario: "Maria Santos",
-    destinatarioEndereco: "Av. Atlântica, 456",
-    destinatarioCidade: "Rio de Janeiro, RJ",
-    destinatarioTelefone: "(21) 99999-1234",
-    empresa: "Expressa Log",
-    status: "em_transito",
-    peso: "2.5 kg",
-    valor: "R$ 85,00",
-    data: "07/04/2026",
-    previsao: "09/04/2026",
-    fragil: false,
-    urgente: false,
-    observacoes: "",
-  },
-  {
-    id: "ENC-20479",
-    remetente: "Carlos Lima",
-    remetenteEndereco: "Av. Afonso Pena, 800",
-    remetenteCidade: "Belo Horizonte, MG",
-    destinatario: "Ana Ferreira",
-    destinatarioEndereco: "SQLN 304, Bloco A",
-    destinatarioCidade: "Brasília, DF",
-    destinatarioTelefone: "(61) 98888-5678",
-    empresa: "Rota Brasil",
-    status: "aguardando_retirada",
-    peso: "5.0 kg",
-    valor: "R$ 120,00",
-    data: "07/04/2026",
-    previsao: "08/04/2026",
-    fragil: true,
-    urgente: false,
-    observacoes: "Eletrônico — manusear com cuidado",
-  },
-  {
-    id: "ENC-20478",
-    remetente: "Pedro Costa",
-    remetenteEndereco: "Rua XV de Novembro, 200",
-    remetenteCidade: "Curitiba, PR",
-    destinatario: "Luiz Oliveira",
-    destinatarioEndereco: "Av. Beira-Mar Norte, 50",
-    destinatarioCidade: "Florianópolis, SC",
-    destinatarioTelefone: "(48) 97777-9012",
-    empresa: "Sul Expresso",
-    status: "entregue",
-    peso: "1.2 kg",
-    valor: "R$ 65,00",
-    data: "06/04/2026",
-    previsao: "08/04/2026",
-    fragil: false,
-    urgente: false,
-    observacoes: "",
-  },
-  {
-    id: "ENC-20477",
-    remetente: "Sandra Melo",
-    remetenteEndereco: "Av. Sete de Setembro, 175",
-    remetenteCidade: "Salvador, BA",
-    destinatario: "Paulo Ramos",
-    destinatarioEndereco: "Rua do Bom Jesus, 99",
-    destinatarioCidade: "Recife, PE",
-    destinatarioTelefone: "(81) 96666-3456",
-    empresa: "Nordeste Log",
-    status: "entregue",
-    peso: "3.8 kg",
-    valor: "R$ 95,00",
-    data: "06/04/2026",
-    previsao: "07/04/2026",
-    fragil: false,
-    urgente: true,
-    observacoes: "Entregar somente ao destinatário",
-  },
-  {
-    id: "ENC-20476",
-    remetente: "Teresa Gomes",
-    remetenteEndereco: "Rua dos Andradas, 500",
-    remetenteCidade: "Porto Alegre, RS",
-    destinatario: "Roberto Dias",
-    destinatarioEndereco: "Al. Santos, 1000",
-    destinatarioCidade: "São Paulo, SP",
-    destinatarioTelefone: "(11) 95555-7890",
-    empresa: "Expressa Log",
-    status: "em_transito",
-    peso: "8.2 kg",
-    valor: "R$ 140,00",
-    data: "05/04/2026",
-    previsao: "10/04/2026",
-    fragil: false,
-    urgente: false,
-    observacoes: "",
-  },
-  {
-    id: "ENC-20475",
-    remetente: "Marcos Nunes",
-    remetenteEndereco: "Av. Eduardo Ribeiro, 300",
-    remetenteCidade: "Manaus, AM",
-    destinatario: "Juliana Barros",
-    destinatarioEndereco: "Tv. Padre Eutíquio, 77",
-    destinatarioCidade: "Belém, PA",
-    destinatarioTelefone: "(91) 94444-2345",
-    empresa: "Norte Express",
-    status: "coletado",
-    peso: "12.0 kg",
-    valor: "R$ 210,00",
-    data: "05/04/2026",
-    previsao: "12/04/2026",
-    fragil: true,
-    urgente: true,
-    observacoes: "Produto frágil e urgente — cuidado no manuseio",
-  },
-  {
-    id: "ENC-20474",
-    remetente: "Fátima Cruz",
-    remetenteEndereco: "Rua Floriano Peixoto, 50",
-    remetenteCidade: "Fortaleza, CE",
-    destinatario: "Wellington Pinto",
-    destinatarioEndereco: "Rua Oscar Freire, 2200",
-    destinatarioCidade: "São Paulo, SP",
-    destinatarioTelefone: "(11) 93333-6789",
-    empresa: "Nordeste Log",
-    status: "pendente",
-    peso: "0.8 kg",
-    valor: "R$ 55,00",
-    data: "04/04/2026",
-    previsao: "11/04/2026",
-    fragil: false,
-    urgente: false,
-    observacoes: "",
-  },
-  {
-    id: "ENC-20473",
-    remetente: "Ricardo Vieira",
-    remetenteEndereco: "Av. Goiás, 1200",
-    remetenteCidade: "Goiânia, GO",
-    destinatario: "Camila Torres",
-    destinatarioEndereco: "SQS 108, Bloco D",
-    destinatarioCidade: "Brasília, DF",
-    destinatarioTelefone: "(61) 92222-1357",
-    empresa: "Rota Brasil",
-    status: "cancelado",
-    peso: "2.0 kg",
-    valor: "R$ 45,00",
-    data: "04/04/2026",
-    previsao: "—",
-    fragil: false,
-    urgente: false,
-    observacoes: "",
-  },
-];
+} as const;
 
 const statusFilters = [
   { label: "Todos", value: "" },
   { label: "Pendente", value: "pendente" },
+  { label: "Coletado", value: "coletado" },
   { label: "Em Trânsito", value: "em_transito" },
   { label: "Ag. Retirada", value: "aguardando_retirada" },
   { label: "Entregue", value: "entregue" },
   { label: "Cancelado", value: "cancelado" },
 ];
 
+type ShipmentStatus = keyof typeof statusMap;
+
+type ShipmentRow = EtiquetaData & {
+  dbId: string;
+  empresaId: string;
+  status: ShipmentStatus;
+  valorNumber: number;
+};
+
+type EmpresaOption = {
+  id: string;
+  nome: string;
+};
+
+const initialForm = {
+  remetente: "",
+  destinatario: "",
+  remetenteCidade: "",
+  destinatarioCidade: "",
+  remetenteEndereco: "",
+  destinatarioEndereco: "",
+  destinatarioTelefone: "",
+  empresaId: "",
+  pesoKg: "",
+  valorFrete: "",
+  previsaoEntrega: "",
+  fragil: false,
+  urgente: false,
+  observacoes: "",
+};
+
+function mapShipment(row: any): ShipmentRow {
+  return {
+    dbId: row.id,
+    id: row.codigo,
+    remetente: row.remetente_nome,
+    remetenteEndereco: row.remetente_endereco ?? "",
+    remetenteCidade: row.remetente_cidade ?? "",
+    destinatario: row.destinatario_nome,
+    destinatarioEndereco: row.destinatario_endereco ?? "",
+    destinatarioCidade: row.destinatario_cidade ?? "",
+    destinatarioTelefone: row.destinatario_telefone ?? "",
+    empresa: row.empresa_nome ?? "—",
+    empresaId: row.empresa_id,
+    status: row.status as ShipmentStatus,
+    peso: formatWeightKg(row.peso_kg),
+    valor: formatCurrencyBRL(row.valor_frete),
+    valorNumber: Number(row.valor_frete ?? 0),
+    data: formatDateBR(row.data_postagem),
+    previsao: formatDateBR(row.previsao_entrega),
+    fragil: Boolean(row.fragil),
+    urgente: Boolean(row.urgente),
+    observacoes: row.observacoes ?? "",
+  };
+}
+
 export default function EncomendasPage() {
+  const supabase = createClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [etiquetaData, setEtiquetaData] = useState<EtiquetaData | null>(null);
+  const [items, setItems] = useState<ShipmentRow[]>([]);
+  const [empresas, setEmpresas] = useState<EmpresaOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [formData, setFormData] = useState(initialForm);
 
-  const filtered = mockData.filter((enc) => {
-    const matchSearch =
-      enc.id.toLowerCase().includes(search.toLowerCase()) ||
-      enc.remetente.toLowerCase().includes(search.toLowerCase()) ||
-      enc.destinatario.toLowerCase().includes(search.toLowerCase()) ||
-      enc.empresa.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = !statusFilter || enc.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const loadData = async () => {
+    setLoading(true);
+    setError("");
 
-  const handleOpenEtiqueta = (enc: typeof mockData[0]) => {
-    setEtiquetaData(enc as EtiquetaData);
+    const [encomendasResult, empresasResult] = await Promise.all([
+      supabase.from("vw_encomendas_lista").select("*").order("data_postagem", { ascending: false }),
+      supabase.from("empresas").select("id, nome").eq("status", "ativo").order("nome"),
+    ]);
+
+    if (encomendasResult.error) {
+      setError(encomendasResult.error.message);
+    } else {
+      setItems((encomendasResult.data ?? []).map(mapShipment));
+    }
+
+    if (empresasResult.error) {
+      setError(empresasResult.error.message);
+    } else {
+      setEmpresas(empresasResult.data ?? []);
+    }
+
+    setLoading(false);
   };
+
+  useEffect(() => {
+    void loadData();
+  }, []);
+
+  const filtered = useMemo(() => {
+    return items.filter((enc) => {
+      const query = search.toLowerCase();
+      const matchSearch =
+        enc.id.toLowerCase().includes(query) ||
+        enc.remetente.toLowerCase().includes(query) ||
+        enc.destinatario.toLowerCase().includes(query) ||
+        enc.empresa.toLowerCase().includes(query);
+
+      const matchStatus = !statusFilter || enc.status === statusFilter;
+      return matchSearch && matchStatus;
+    });
+  }, [items, search, statusFilter]);
+
+  const handleOpenEtiqueta = (enc: ShipmentRow) => {
+    setEtiquetaData(enc);
+  };
+
+  const handleInputChange = (field: keyof typeof initialForm, value: string | boolean) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCreateShipment = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    if (!formData.remetente || !formData.destinatario || !formData.empresaId) {
+      setError("Preencha os campos obrigatórios da encomenda.");
+      setSaving(false);
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { error: insertError } = await supabase.from("encomendas").insert({
+      empresa_id: formData.empresaId,
+      remetente_nome: formData.remetente,
+      remetente_endereco: formData.remetenteEndereco || null,
+      remetente_cidade: formData.remetenteCidade || null,
+      destinatario_nome: formData.destinatario,
+      destinatario_endereco: formData.destinatarioEndereco || null,
+      destinatario_cidade: formData.destinatarioCidade,
+      destinatario_telefone: formData.destinatarioTelefone || null,
+      status: "pendente",
+      peso_kg: Number(formData.pesoKg || 0),
+      valor_frete: Number(formData.valorFrete || 0),
+      data_postagem: new Date().toISOString().slice(0, 10),
+      previsao_entrega: formData.previsaoEntrega || null,
+      fragil: formData.fragil,
+      urgente: formData.urgente,
+      observacoes: formData.observacoes || null,
+      created_by: user?.id ?? null,
+    });
+
+    if (insertError) {
+      setError(insertError.message);
+      setSaving(false);
+      return;
+    }
+
+    setFormData(initialForm);
+    setShowModal(false);
+    setSuccess("Encomenda cadastrada com sucesso.");
+    setSaving(false);
+    await loadData();
+  };
+
+  const totalEmTransito = items.filter((item) => item.status === "em_transito").length;
+  const totalAguardando = items.filter((item) => item.status === "aguardando_retirada").length;
+  const totalEntregues = items.filter((item) => item.status === "entregue").length;
+  const totalCanceladas = items.filter((item) => item.status === "cancelado").length;
 
   return (
     <div className="animate-fade-in">
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
         <div>
           <div className="breadcrumb" style={{ marginBottom: "6px" }}>
@@ -209,8 +210,7 @@ export default function EncomendasPage() {
             Gestão de Encomendas
           </h2>
           <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
-            {mockData.length} encomendas no sistema ·{" "}
-            {mockData.filter((e) => e.status === "em_transito").length} em trânsito
+            {items.length} encomendas no sistema · {totalEmTransito} em trânsito
           </p>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
@@ -223,23 +223,34 @@ export default function EncomendasPage() {
         </div>
       </div>
 
-      {/* Stats Bar */}
+      {(error || success) && (
+        <div
+          className="card"
+          style={{
+            marginBottom: "16px",
+            borderColor: error ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)",
+            color: error ? "#fca5a5" : "#86efac",
+          }}
+        >
+          {error || success}
+        </div>
+      )}
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "12px", marginBottom: "20px" }}>
         {[
-          { label: "Total", value: mockData.length, color: "var(--text-primary)" },
-          { label: "Em Trânsito", value: mockData.filter((e) => e.status === "em_transito").length, color: "#38bdf8" },
-          { label: "Ag. Retirada", value: mockData.filter((e) => e.status === "aguardando_retirada").length, color: "#fbbf24" },
-          { label: "Entregues", value: mockData.filter((e) => e.status === "entregue").length, color: "#34d399" },
-          { label: "Canceladas", value: mockData.filter((e) => e.status === "cancelado").length, color: "#f87171" },
-        ].map((stat, i) => (
-          <div key={i} style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
+          { label: "Total", value: items.length, color: "var(--text-primary)" },
+          { label: "Em Trânsito", value: totalEmTransito, color: "#38bdf8" },
+          { label: "Ag. Retirada", value: totalAguardando, color: "#fbbf24" },
+          { label: "Entregues", value: totalEntregues, color: "#34d399" },
+          { label: "Canceladas", value: totalCanceladas, color: "#f87171" },
+        ].map((stat, index) => (
+          <div key={index} style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
             <div style={{ fontSize: "22px", fontWeight: "800", color: stat.color }}>{stat.value}</div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>{stat.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Filters */}
       <div className="card" style={{ marginBottom: "16px" }}>
         <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
           <input
@@ -251,18 +262,18 @@ export default function EncomendasPage() {
             id="input-search-encomendas"
           />
           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-            {statusFilters.map((f) => (
+            {statusFilters.map((filter) => (
               <button
-                key={f.value}
-                onClick={() => setStatusFilter(f.value)}
+                key={filter.value}
+                onClick={() => setStatusFilter(filter.value)}
                 className="btn btn-sm"
                 style={{
-                  background: statusFilter === f.value ? "rgba(255,255,255,0.08)" : "var(--bg-elevated)",
-                  color: statusFilter === f.value ? "var(--text-primary)" : "var(--text-secondary)",
-                  border: `1px solid ${statusFilter === f.value ? "rgba(255,255,255,0.14)" : "var(--border-subtle)"}`,
+                  background: statusFilter === filter.value ? "rgba(255,255,255,0.08)" : "var(--bg-elevated)",
+                  color: statusFilter === filter.value ? "var(--text-primary)" : "var(--text-secondary)",
+                  border: `1px solid ${statusFilter === filter.value ? "rgba(255,255,255,0.14)" : "var(--border-subtle)"}`,
                 }}
               >
-                {f.label}
+                {filter.label}
               </button>
             ))}
           </div>
@@ -272,7 +283,6 @@ export default function EncomendasPage() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="card" style={{ padding: "0" }}>
         <div className="table-container">
           <table>
@@ -291,7 +301,13 @@ export default function EncomendasPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={10} style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)" }}>
+                    Carregando encomendas...
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={10}>
                     <div className="empty-state">
@@ -303,9 +319,10 @@ export default function EncomendasPage() {
                 </tr>
               ) : (
                 filtered.map((enc) => {
-                  const st = statusMap[enc.status];
+                  const st = statusMap[enc.status] ?? statusMap.pendente;
+
                   return (
-                    <tr key={enc.id}>
+                    <tr key={enc.dbId}>
                       <td>
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                           <strong style={{ fontFamily: "monospace", fontSize: "12px", color: "var(--brand-primary-light)" }}>
@@ -320,7 +337,7 @@ export default function EncomendasPage() {
                       <td style={{ fontSize: "12px" }}>{enc.destinatario}</td>
                       <td style={{ fontSize: "12px" }}>{enc.empresa}</td>
                       <td>
-                        <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{enc.remetenteCidade}</div>
+                        <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{enc.remetenteCidade || "—"}</div>
                         <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>→ {enc.destinatarioCidade}</div>
                       </td>
                       <td style={{ fontSize: "12px" }}>{enc.peso}</td>
@@ -331,16 +348,10 @@ export default function EncomendasPage() {
                       </td>
                       <td>
                         <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>
-                          <button
-                            className="btn btn-ghost btn-icon btn-sm"
-                            title="Ver detalhes"
-                          >
+                          <button className="btn btn-ghost btn-icon btn-sm" title="Ver detalhes" onClick={() => handleOpenEtiqueta(enc)}>
                             👁️
                           </button>
-                          <button
-                            className="btn btn-ghost btn-icon btn-sm"
-                            title="Editar"
-                          >
+                          <button className="btn btn-ghost btn-icon btn-sm" title="Editar" onClick={() => handleOpenEtiqueta(enc)}>
                             ✏️
                           </button>
                           <button
@@ -368,7 +379,6 @@ export default function EncomendasPage() {
           </table>
         </div>
 
-        {/* Pagination */}
         <div style={{
           display: "flex",
           alignItems: "center",
@@ -377,7 +387,7 @@ export default function EncomendasPage() {
           borderTop: "1px solid var(--border-subtle)",
         }}>
           <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-            {filtered.length} de {mockData.length} encomendas
+            {filtered.length} de {items.length} encomendas
           </span>
           <div style={{ display: "flex", gap: "6px" }}>
             <button className="btn btn-secondary btn-sm">← Anterior</button>
@@ -387,72 +397,106 @@ export default function EncomendasPage() {
         </div>
       </div>
 
-      {/* Modal Nova Encomenda */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "640px" }}>
-            <div className="modal-header">
-              <div>
-                <div className="modal-title">Nova Encomenda</div>
-                <div className="modal-subtitle">Preencha os dados para cadastrar</div>
-              </div>
-              <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)} style={{ fontSize: "18px" }}>
-                ✕
-              </button>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <div className="grid-2">
-                <div className="input-group"><label>Remetente *</label><input type="text" placeholder="Nome completo" /></div>
-                <div className="input-group"><label>Destinatário *</label><input type="text" placeholder="Nome completo" /></div>
-              </div>
-              <div className="grid-2">
-                <div className="input-group"><label>Cidade de Origem *</label><input type="text" placeholder="Cidade, UF" /></div>
-                <div className="input-group"><label>Cidade de Destino *</label><input type="text" placeholder="Cidade, UF" /></div>
-              </div>
-              <div className="grid-2">
-                <div className="input-group"><label>Endereço do Remetente</label><input type="text" placeholder="Rua, número" /></div>
-                <div className="input-group"><label>Endereço do Destinatário</label><input type="text" placeholder="Rua, número" /></div>
-              </div>
-              <div className="grid-3">
-                <div className="input-group">
-                  <label>Empresa Parceira *</label>
-                  <select>
-                    <option value="">Selecione...</option>
-                    <option>Expressa Log</option>
-                    <option>Rota Brasil</option>
-                    <option>Sul Expresso</option>
-                    <option>Nordeste Log</option>
-                    <option>Norte Express</option>
-                  </select>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "720px" }}>
+            <form onSubmit={handleCreateShipment}>
+              <div className="modal-header">
+                <div>
+                  <div className="modal-title">Nova Encomenda</div>
+                  <div className="modal-subtitle">Preencha os dados para cadastrar</div>
                 </div>
-                <div className="input-group"><label>Peso (kg) *</label><input type="number" placeholder="0.0" min="0" step="0.1" /></div>
-                <div className="input-group"><label>Valor do Frete *</label><input type="text" placeholder="R$ 0,00" /></div>
+                <button type="button" className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)} style={{ fontSize: "18px" }}>
+                  ✕
+                </button>
               </div>
-              <div style={{ display: "flex", gap: "20px" }}>
-                <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
-                  <input type="checkbox" style={{ width: "auto" }} />
-                  <span>⚠️ Frágil</span>
-                </label>
-                <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
-                  <input type="checkbox" style={{ width: "auto" }} />
-                  <span>🚨 Urgente</span>
-                </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div className="grid-2">
+                  <div className="input-group">
+                    <label>Remetente *</label>
+                    <input type="text" value={formData.remetente} onChange={(e) => handleInputChange("remetente", e.target.value)} placeholder="Nome completo" required />
+                  </div>
+                  <div className="input-group">
+                    <label>Destinatário *</label>
+                    <input type="text" value={formData.destinatario} onChange={(e) => handleInputChange("destinatario", e.target.value)} placeholder="Nome completo" required />
+                  </div>
+                </div>
+                <div className="grid-2">
+                  <div className="input-group">
+                    <label>Cidade de Origem</label>
+                    <input type="text" value={formData.remetenteCidade} onChange={(e) => handleInputChange("remetenteCidade", e.target.value)} placeholder="Cidade, UF" />
+                  </div>
+                  <div className="input-group">
+                    <label>Cidade de Destino *</label>
+                    <input type="text" value={formData.destinatarioCidade} onChange={(e) => handleInputChange("destinatarioCidade", e.target.value)} placeholder="Cidade, UF" required />
+                  </div>
+                </div>
+                <div className="grid-2">
+                  <div className="input-group">
+                    <label>Endereço do Remetente</label>
+                    <input type="text" value={formData.remetenteEndereco} onChange={(e) => handleInputChange("remetenteEndereco", e.target.value)} placeholder="Rua, número" />
+                  </div>
+                  <div className="input-group">
+                    <label>Endereço do Destinatário</label>
+                    <input type="text" value={formData.destinatarioEndereco} onChange={(e) => handleInputChange("destinatarioEndereco", e.target.value)} placeholder="Rua, número" />
+                  </div>
+                </div>
+                <div className="grid-3">
+                  <div className="input-group">
+                    <label>Empresa Parceira *</label>
+                    <select value={formData.empresaId} onChange={(e) => handleInputChange("empresaId", e.target.value)} required>
+                      <option value="">Selecione...</option>
+                      {empresas.map((empresa) => (
+                        <option key={empresa.id} value={empresa.id}>{empresa.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="input-group">
+                    <label>Peso (kg) *</label>
+                    <input type="number" value={formData.pesoKg} onChange={(e) => handleInputChange("pesoKg", e.target.value)} placeholder="0.0" min="0" step="0.1" required />
+                  </div>
+                  <div className="input-group">
+                    <label>Valor do Frete *</label>
+                    <input type="number" value={formData.valorFrete} onChange={(e) => handleInputChange("valorFrete", e.target.value)} placeholder="0.00" min="0" step="0.01" required />
+                  </div>
+                </div>
+                <div className="grid-2">
+                  <div className="input-group">
+                    <label>Telefone do Destinatário</label>
+                    <input type="text" value={formData.destinatarioTelefone} onChange={(e) => handleInputChange("destinatarioTelefone", e.target.value)} placeholder="(00) 00000-0000" />
+                  </div>
+                  <div className="input-group">
+                    <label>Previsão de Entrega</label>
+                    <input type="date" value={formData.previsaoEntrega} onChange={(e) => handleInputChange("previsaoEntrega", e.target.value)} />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "20px" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                    <input type="checkbox" checked={formData.fragil} onChange={(e) => handleInputChange("fragil", e.target.checked)} style={{ width: "auto" }} />
+                    <span>⚠️ Frágil</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                    <input type="checkbox" checked={formData.urgente} onChange={(e) => handleInputChange("urgente", e.target.checked)} style={{ width: "auto" }} />
+                    <span>🚨 Urgente</span>
+                  </label>
+                </div>
+                <div className="input-group">
+                  <label>Observações</label>
+                  <textarea value={formData.observacoes} onChange={(e) => handleInputChange("observacoes", e.target.value)} placeholder="Informações adicionais..." rows={2} style={{ resize: "none" }} />
+                </div>
               </div>
-              <div className="input-group">
-                <label>Observações</label>
-                <textarea placeholder="Informações adicionais..." rows={2} style={{ resize: "none" }} />
+              <div className="divider" />
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? "Salvando..." : "📦 Cadastrar Encomenda"}
+                </button>
               </div>
-            </div>
-            <div className="divider" />
-            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-              <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={() => setShowModal(false)}>📦 Cadastrar Encomenda</button>
-            </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* Etiqueta Modal */}
       {etiquetaData && (
         <EtiquetaModal
           data={etiquetaData}

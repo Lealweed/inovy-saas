@@ -1,36 +1,149 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { formatCurrencyBRL } from "@/lib/formatters";
 
-const empresas = [
-  { id: "EMP-001", nome: "Expressa Log", cnpj: "12.345.678/0001-90", contato: "Felipe Mendes", email: "ops@expressalog.com.br", telefone: "(11) 99999-0001", comissao: 15, status: "ativo", encomendas: 412, receita: "R$ 18.540" },
-  { id: "EMP-002", nome: "Rota Brasil", cnpj: "23.456.789/0001-01", contato: "Sandra Lima", email: "contato@rotabrasil.com.br", telefone: "(21) 99999-0002", comissao: 12, status: "ativo", encomendas: 298, receita: "R$ 13.410" },
-  { id: "EMP-003", nome: "Sul Expresso", cnpj: "34.567.890/0001-12", contato: "Rodrigo Santos", email: "admin@sulexpresso.com.br", telefone: "(51) 99999-0003", comissao: 18, status: "ativo", encomendas: 187, receita: "R$ 8.415" },
-  { id: "EMP-004", nome: "Nordeste Log", cnpj: "45.678.901/0001-23", contato: "Fernanda Costa", email: "fern@nordestelog.com.br", telefone: "(81) 99999-0004", comissao: 14, status: "ativo", encomendas: 156, receita: "R$ 7.020" },
-  { id: "EMP-005", nome: "Norte Express", cnpj: "56.789.012/0001-34", contato: "Gabriel Sousa", email: "gabriel@nortexpress.com.br", telefone: "(92) 99999-0005", comissao: 16, status: "inativo", encomendas: 98, receita: "R$ 4.410" },
-  { id: "EMP-006", nome: "Centro Trans", cnpj: "67.890.123/0001-45", contato: "Priscila Martins", email: "ops@centrotrans.com.br", telefone: "(62) 99999-0006", comissao: 13, status: "ativo", encomendas: 72, receita: "R$ 3.240" },
-];
+type EmpresaCard = {
+  dbId: string;
+  id: string;
+  nome: string;
+  cnpj: string;
+  contato: string;
+  email: string;
+  telefone: string;
+  comissao: number;
+  status: string;
+  encomendas: number;
+  receita: string;
+};
+
+const initialForm = {
+  nome: "",
+  cnpj: "",
+  contato: "",
+  telefone: "",
+  email: "",
+  comissao: "15",
+};
 
 export default function EmpresasPage() {
+  const supabase = createClient();
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState("");
+  const [empresas, setEmpresas] = useState<EmpresaCard[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [formData, setFormData] = useState(initialForm);
 
-  const filtered = empresas.filter(
-    (e) =>
-      e.nome.toLowerCase().includes(search.toLowerCase()) ||
-      e.cnpj.includes(search) ||
-      e.contato.toLowerCase().includes(search.toLowerCase())
-  );
+  const loadData = async () => {
+    setLoading(true);
+    setError("");
+
+    const [empresasResult, rankingResult] = await Promise.all([
+      supabase.from("empresas").select("*").order("nome"),
+      supabase.from("vw_ranking_empresas").select("*"),
+    ]);
+
+    if (empresasResult.error) {
+      setError(empresasResult.error.message);
+      setLoading(false);
+      return;
+    }
+
+    const rankingById = new Map((rankingResult.data ?? []).map((item: any) => [item.id, item]));
+
+    setEmpresas(
+      (empresasResult.data ?? []).map((empresa: any) => {
+        const stats = rankingById.get(empresa.id);
+
+        return {
+          dbId: empresa.id,
+          id: empresa.codigo,
+          nome: empresa.nome,
+          cnpj: empresa.cnpj,
+          contato: empresa.contato_nome,
+          email: empresa.email,
+          telefone: empresa.telefone ?? "—",
+          comissao: Number(empresa.comissao_pct ?? 0),
+          status: empresa.status,
+          encomendas: Number(stats?.total_encomendas ?? 0),
+          receita: formatCurrencyBRL(stats?.receita_total ?? 0),
+        };
+      })
+    );
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void loadData();
+  }, []);
+
+  const filtered = useMemo(() => {
+    return empresas.filter(
+      (empresa) =>
+        empresa.nome.toLowerCase().includes(search.toLowerCase()) ||
+        empresa.cnpj.includes(search) ||
+        empresa.contato.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [empresas, search]);
+
+  const handleInputChange = (field: keyof typeof initialForm, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCreateCompany = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { error: insertError } = await supabase.from("empresas").insert({
+      nome: formData.nome,
+      cnpj: formData.cnpj,
+      contato_nome: formData.contato,
+      telefone: formData.telefone || null,
+      email: formData.email,
+      comissao_pct: Number(formData.comissao || 15),
+      status: "ativo",
+      created_by: user?.id ?? null,
+    });
+
+    if (insertError) {
+      setError(insertError.message);
+      setSaving(false);
+      return;
+    }
+
+    setFormData(initialForm);
+    setShowModal(false);
+    setSuccess("Empresa cadastrada com sucesso.");
+    setSaving(false);
+    await loadData();
+  };
+
+  const empresasAtivas = empresas.filter((empresa) => empresa.status === "ativo").length;
+  const totalEncomendas = empresas.reduce((sum, empresa) => sum + empresa.encomendas, 0);
+  const mediaComissao = empresas.length
+    ? (empresas.reduce((sum, empresa) => sum + empresa.comissao, 0) / empresas.length).toFixed(1)
+    : "0.0";
+  const empresasInativas = empresas.filter((empresa) => empresa.status === "inativo").length;
 
   return (
     <div className="animate-fade-in">
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
         <div>
           <h2 style={{ fontSize: "20px", fontWeight: "700", color: "var(--text-primary)" }}>
             Empresas Parceiras
           </h2>
           <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
-            {empresas.length} parceiros cadastrados · {empresas.filter(e => e.status === "ativo").length} ativos
+            {empresas.length} parceiros cadastrados · {empresasAtivas} ativos
           </p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowModal(true)} id="btn-nova-empresa">
@@ -38,15 +151,27 @@ export default function EmpresasPage() {
         </button>
       </div>
 
-      {/* KPIs */}
+      {(error || success) && (
+        <div
+          className="card"
+          style={{
+            marginBottom: "16px",
+            borderColor: error ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)",
+            color: error ? "#fca5a5" : "#86efac",
+          }}
+        >
+          {error || success}
+        </div>
+      )}
+
       <div className="grid-4" style={{ marginBottom: "20px" }}>
         {[
-          { label: "Parceiros Ativos", value: empresas.filter(e => e.status === "ativo").length, icon: "🏢", color: "indigo" },
-          { label: "Total Encomendas", value: empresas.reduce((a, e) => a + e.encomendas, 0), icon: "📦", color: "sky" },
-          { label: "Comissão Média", value: `${(empresas.reduce((a, e) => a + e.comissao, 0) / empresas.length).toFixed(1)}%`, icon: "💹", color: "emerald" },
-          { label: "Inativos", value: empresas.filter(e => e.status === "inativo").length, icon: "⚠️", color: "amber" },
-        ].map((kpi, i) => (
-          <div key={i} className="kpi-card">
+          { label: "Parceiros Ativos", value: empresasAtivas, icon: "🏢", color: "indigo" },
+          { label: "Total Encomendas", value: totalEncomendas, icon: "📦", color: "sky" },
+          { label: "Comissão Média", value: `${mediaComissao}%`, icon: "💹", color: "emerald" },
+          { label: "Inativos", value: empresasInativas, icon: "⚠️", color: "amber" },
+        ].map((kpi, index) => (
+          <div key={index} className="kpi-card">
             <div className={`kpi-icon ${kpi.color}`}>{kpi.icon}</div>
             <div>
               <div className="kpi-value">{kpi.value}</div>
@@ -56,7 +181,6 @@ export default function EmpresasPage() {
         ))}
       </div>
 
-      {/* Search */}
       <div className="card" style={{ marginBottom: "16px" }}>
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
           <input
@@ -72,10 +196,13 @@ export default function EmpresasPage() {
         </div>
       </div>
 
-      {/* Cards Grid */}
       <div className="grid-3" style={{ gap: "14px" }}>
-        {filtered.map((emp) => (
-          <div key={emp.id} className="card" style={{ position: "relative" }}>
+        {loading ? (
+          <div className="card" style={{ gridColumn: "1 / -1", textAlign: "center", color: "var(--text-muted)" }}>
+            Carregando empresas...
+          </div>
+        ) : filtered.map((emp) => (
+          <div key={emp.dbId} className="card" style={{ position: "relative" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "14px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 <div style={{
@@ -106,9 +233,9 @@ export default function EmpresasPage() {
                 <span style={{ color: "var(--text-muted)" }}>👤 Contato</span>
                 <span style={{ color: "var(--text-secondary)" }}>{emp.contato}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
                 <span style={{ color: "var(--text-muted)" }}>📧 E-mail</span>
-                <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>{emp.email}</span>
+                <span style={{ color: "var(--text-secondary)", fontSize: "11px", textAlign: "right" }}>{emp.email}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--text-muted)" }}>📱 Telefone</span>
@@ -147,54 +274,57 @@ export default function EmpresasPage() {
         ))}
       </div>
 
-      {/* Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <div className="modal-title">Cadastrar Empresa Parceira</div>
-                <div className="modal-subtitle">Preencha os dados da empresa</div>
+            <form onSubmit={handleCreateCompany}>
+              <div className="modal-header">
+                <div>
+                  <div className="modal-title">Cadastrar Empresa Parceira</div>
+                  <div className="modal-subtitle">Preencha os dados da empresa</div>
+                </div>
+                <button type="button" className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}>✕</button>
               </div>
-              <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}>✕</button>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              <div className="grid-2">
-                <div className="input-group">
-                  <label>Nome da Empresa *</label>
-                  <input type="text" placeholder="Razão social" />
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                <div className="grid-2">
+                  <div className="input-group">
+                    <label>Nome da Empresa *</label>
+                    <input type="text" value={formData.nome} onChange={(e) => handleInputChange("nome", e.target.value)} placeholder="Razão social" required />
+                  </div>
+                  <div className="input-group">
+                    <label>CNPJ *</label>
+                    <input type="text" value={formData.cnpj} onChange={(e) => handleInputChange("cnpj", e.target.value)} placeholder="00.000.000/0000-00" required />
+                  </div>
                 </div>
-                <div className="input-group">
-                  <label>CNPJ *</label>
-                  <input type="text" placeholder="00.000.000/0000-00" />
+                <div className="grid-2">
+                  <div className="input-group">
+                    <label>Nome do Contato *</label>
+                    <input type="text" value={formData.contato} onChange={(e) => handleInputChange("contato", e.target.value)} placeholder="Responsável" required />
+                  </div>
+                  <div className="input-group">
+                    <label>Telefone *</label>
+                    <input type="text" value={formData.telefone} onChange={(e) => handleInputChange("telefone", e.target.value)} placeholder="(00) 00000-0000" required />
+                  </div>
+                </div>
+                <div className="grid-2">
+                  <div className="input-group">
+                    <label>E-mail *</label>
+                    <input type="email" value={formData.email} onChange={(e) => handleInputChange("email", e.target.value)} placeholder="email@empresa.com" required />
+                  </div>
+                  <div className="input-group">
+                    <label>Comissão Inovy (%) *</label>
+                    <input type="number" value={formData.comissao} onChange={(e) => handleInputChange("comissao", e.target.value)} min="0" max="100" required />
+                  </div>
                 </div>
               </div>
-              <div className="grid-2">
-                <div className="input-group">
-                  <label>Nome do Contato *</label>
-                  <input type="text" placeholder="Responsável" />
-                </div>
-                <div className="input-group">
-                  <label>Telefone *</label>
-                  <input type="text" placeholder="(00) 00000-0000" />
-                </div>
+              <div className="divider" />
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? "Salvando..." : "🏢 Cadastrar Empresa"}
+                </button>
               </div>
-              <div className="grid-2">
-                <div className="input-group">
-                  <label>E-mail *</label>
-                  <input type="email" placeholder="email@empresa.com" />
-                </div>
-                <div className="input-group">
-                  <label>Comissão Inovy (%) *</label>
-                  <input type="number" placeholder="15" min="0" max="100" />
-                </div>
-              </div>
-            </div>
-            <div className="divider" />
-            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-              <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={() => setShowModal(false)}>🏢 Cadastrar Empresa</button>
-            </div>
+            </form>
           </div>
         </div>
       )}
