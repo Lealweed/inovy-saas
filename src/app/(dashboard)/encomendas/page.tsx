@@ -149,18 +149,18 @@ export default function EncomendasPage() {
     setFormData({
       remetente: enc.remetente,
       destinatario: enc.destinatario,
-      remetenteCidade: enc.remetenteCidade,
-      destinatarioCidade: enc.destinatarioCidade,
-      remetenteEndereco: enc.remetenteEndereco,
-      destinatarioEndereco: enc.destinatarioEndereco,
-      destinatarioTelefone: enc.destinatarioTelefone,
+      remetenteCidade: enc.remetenteCidade ?? "",
+      destinatarioCidade: enc.destinatarioCidade ?? "",
+      remetenteEndereco: enc.remetenteEndereco ?? "",
+      destinatarioEndereco: enc.destinatarioEndereco ?? "",
+      destinatarioTelefone: enc.destinatarioTelefone ?? "",
       empresaId: enc.empresaId,
       pesoKg: String(enc.pesoNumber || ""),
       valorFrete: String(enc.valorNumber || ""),
       previsaoEntrega: enc.previsaoRaw,
-      fragil: enc.fragil,
-      urgente: enc.urgente,
-      observacoes: enc.observacoes,
+      fragil: enc.fragil ?? false,
+      urgente: enc.urgente ?? false,
+      observacoes: enc.observacoes ?? "",
     });
     setEditingEnc(enc);
     setShowModal(true);
