@@ -36,6 +36,8 @@ export default function EmpresasPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [formData, setFormData] = useState(initialForm);
+  const [editingEmpresa, setEditingEmpresa] = useState<EmpresaCard | null>(null);
+  const [deletingEmpresa, setDeletingEmpresa] = useState<EmpresaCard | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -125,6 +127,86 @@ export default function EmpresasPage() {
     setShowModal(false);
     setSuccess("Empresa cadastrada com sucesso.");
     setSaving(false);
+    await loadData();
+  };
+
+  const handleEdit = (emp: EmpresaCard) => {
+    setFormData({
+      nome: emp.nome,
+      cnpj: emp.cnpj,
+      contato: emp.contato,
+      telefone: emp.telefone === "—" ? "" : emp.telefone,
+      email: emp.email,
+      comissao: String(emp.comissao),
+    });
+    setEditingEmpresa(emp);
+    setShowModal(true);
+  };
+
+  const handleUpdateCompany = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingEmpresa) return;
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    const { error: updateError } = await supabase.from("empresas").update({
+      nome: formData.nome,
+      cnpj: formData.cnpj,
+      contato_nome: formData.contato,
+      telefone: formData.telefone || null,
+      email: formData.email,
+      comissao_pct: Number(formData.comissao || 15),
+    }).eq("id", editingEmpresa.dbId);
+
+    if (updateError) {
+      setError(updateError.message);
+      setSaving(false);
+      return;
+    }
+
+    setFormData(initialForm);
+    setEditingEmpresa(null);
+    setShowModal(false);
+    setSuccess("Empresa atualizada com sucesso.");
+    setSaving(false);
+    await loadData();
+  };
+
+  const handleDeleteCompany = async () => {
+    if (!deletingEmpresa) return;
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    const { error: deleteError } = await supabase.from("empresas").delete().eq("id", deletingEmpresa.dbId);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      setSaving(false);
+      setDeletingEmpresa(null);
+      return;
+    }
+
+    setDeletingEmpresa(null);
+    setSuccess("Empresa excluída com sucesso.");
+    setSaving(false);
+    await loadData();
+  };
+
+  const handleToggleStatus = async (emp: EmpresaCard) => {
+    const novoStatus = emp.status === "ativo" ? "inativo" : "ativo";
+    setError("");
+    setSuccess("");
+
+    const { error: toggleError } = await supabase.from("empresas").update({ status: novoStatus }).eq("id", emp.dbId);
+
+    if (toggleError) {
+      setError(toggleError.message);
+      return;
+    }
+
+    setSuccess(`Empresa ${novoStatus === "ativo" ? "ativada" : "inativada"} com sucesso.`);
     await loadData();
   };
 
@@ -266,24 +348,30 @@ export default function EmpresasPage() {
 
             <div className="divider" />
             <div style={{ display: "flex", gap: "6px" }}>
-              <button className="btn btn-secondary btn-sm" style={{ flex: 1 }}>✏️ Editar</button>
-              <button className="btn btn-ghost btn-sm">📊</button>
-              <button className="btn btn-ghost btn-sm">💸</button>
+              <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => handleEdit(emp)}>✏️ Editar</button>
+              <button
+                className="btn btn-ghost btn-sm"
+                title={emp.status === "ativo" ? "Inativar" : "Ativar"}
+                onClick={() => handleToggleStatus(emp)}
+              >
+                {emp.status === "ativo" ? "⏸️" : "▶️"}
+              </button>
+              <button className="btn btn-ghost btn-sm" title="Excluir" onClick={() => setDeletingEmpresa(emp)} style={{ color: "#f87171" }}>🗑️</button>
             </div>
           </div>
         ))}
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowModal(false); setEditingEmpresa(null); setFormData(initialForm); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <form onSubmit={handleCreateCompany}>
+            <form onSubmit={editingEmpresa ? handleUpdateCompany : handleCreateCompany}>
               <div className="modal-header">
                 <div>
-                  <div className="modal-title">Cadastrar Empresa Parceira</div>
-                  <div className="modal-subtitle">Preencha os dados da empresa</div>
+                  <div className="modal-title">{editingEmpresa ? "Editar Empresa" : "Cadastrar Empresa Parceira"}</div>
+                  <div className="modal-subtitle">{editingEmpresa ? `Editando ${editingEmpresa.nome}` : "Preencha os dados da empresa"}</div>
                 </div>
-                <button type="button" className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}>✕</button>
+                <button type="button" className="btn btn-ghost btn-icon" onClick={() => { setShowModal(false); setEditingEmpresa(null); setFormData(initialForm); }}>✕</button>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                 <div className="grid-2">
@@ -319,12 +407,49 @@ export default function EmpresasPage() {
               </div>
               <div className="divider" />
               <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
+                <button type="button" className="btn btn-secondary" onClick={() => { setShowModal(false); setEditingEmpresa(null); setFormData(initialForm); }}>Cancelar</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Salvando..." : "🏢 Cadastrar Empresa"}
+                  {saving ? "Salvando..." : editingEmpresa ? "💾 Salvar Alterações" : "🏢 Cadastrar Empresa"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {deletingEmpresa && (
+        <div className="modal-overlay" onClick={() => setDeletingEmpresa(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "440px" }}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">Excluir Empresa</div>
+                <div className="modal-subtitle">Esta ação não pode ser desfeita</div>
+              </div>
+              <button type="button" className="btn btn-ghost btn-icon" onClick={() => setDeletingEmpresa(null)} style={{ fontSize: "18px" }}>
+                ✕
+              </button>
+            </div>
+            <p style={{ color: "var(--text-secondary)", fontSize: "13px", margin: "0 0 8px" }}>
+              Tem certeza que deseja excluir a empresa <strong style={{ color: "var(--text-primary)" }}>{deletingEmpresa.nome}</strong> (CNPJ: {deletingEmpresa.cnpj})?
+              {deletingEmpresa.encomendas > 0 && (
+                <span style={{ display: "block", marginTop: "8px", color: "#fbbf24", fontSize: "12px" }}>
+                  ⚠️ Esta empresa possui {deletingEmpresa.encomendas} encomenda(s) vinculada(s).
+                </span>
+              )}
+            </p>
+            <div className="divider" />
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setDeletingEmpresa(null)}>Cancelar</button>
+              <button
+                type="button"
+                className="btn"
+                style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)" }}
+                onClick={handleDeleteCompany}
+                disabled={saving}
+              >
+                {saving ? "Excluindo..." : "🗑️ Excluir"}
+              </button>
+            </div>
           </div>
         </div>
       )}
