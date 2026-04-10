@@ -64,10 +64,10 @@ export default function RelatoriosPage() {
       {/* Quick Stats */}
       <div className="grid-4" style={{ marginBottom: "24px" }}>
         {[
-          { label: "Relatórios Gerados", value: "347", icon: "📋", sub: "este mês" },
-          { label: "Exportações PDF", value: "128", icon: "📄", sub: "este mês" },
-          { label: "Exportações Excel", value: "219", icon: "📊", sub: "este mês" },
-          { label: "Último Relatório", value: "há 2h", icon: "🕐", sub: "Dashboard diário" },
+          { label: "Relatórios Gerados", value: "0", icon: "📋", sub: "este mês" },
+          { label: "Exportações PDF", value: "0", icon: "📄", sub: "este mês" },
+          { label: "Exportações Excel", value: "0", icon: "📊", sub: "este mês" },
+          { label: "Último Relatório", value: "—", icon: "🕐", sub: "Nenhum gerado" },
         ].map((stat, i) => (
           <div key={i} className="kpi-card">
             <div className="kpi-icon indigo">{stat.icon}</div>
