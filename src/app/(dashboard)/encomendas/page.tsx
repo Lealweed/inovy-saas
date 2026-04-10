@@ -30,6 +30,8 @@ type ShipmentRow = EtiquetaData & {
   empresaId: string;
   status: ShipmentStatus;
   valorNumber: number;
+  pesoNumber: number;
+  previsaoRaw: string;
 };
 
 type EmpresaOption = {
@@ -71,6 +73,8 @@ function mapShipment(row: any): ShipmentRow {
     peso: formatWeightKg(row.peso_kg),
     valor: formatCurrencyBRL(row.valor_frete),
     valorNumber: Number(row.valor_frete ?? 0),
+    pesoNumber: Number(row.peso_kg ?? 0),
+    previsaoRaw: row.previsao_entrega ?? "",
     data: formatDateBR(row.data_postagem),
     previsao: formatDateBR(row.previsao_entrega),
     fragil: Boolean(row.fragil),
@@ -92,6 +96,8 @@ export default function EncomendasPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [formData, setFormData] = useState(initialForm);
+  const [editingEnc, setEditingEnc] = useState<ShipmentRow | null>(null);
+  const [deletingEnc, setDeletingEnc] = useState<ShipmentRow | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -137,6 +143,92 @@ export default function EncomendasPage() {
 
   const handleOpenEtiqueta = (enc: ShipmentRow) => {
     setEtiquetaData(enc);
+  };
+
+  const handleEdit = (enc: ShipmentRow) => {
+    setFormData({
+      remetente: enc.remetente,
+      destinatario: enc.destinatario,
+      remetenteCidade: enc.remetenteCidade,
+      destinatarioCidade: enc.destinatarioCidade,
+      remetenteEndereco: enc.remetenteEndereco,
+      destinatarioEndereco: enc.destinatarioEndereco,
+      destinatarioTelefone: enc.destinatarioTelefone,
+      empresaId: enc.empresaId,
+      pesoKg: String(enc.pesoNumber || ""),
+      valorFrete: String(enc.valorNumber || ""),
+      previsaoEntrega: enc.previsaoRaw,
+      fragil: enc.fragil,
+      urgente: enc.urgente,
+      observacoes: enc.observacoes,
+    });
+    setEditingEnc(enc);
+    setShowModal(true);
+  };
+
+  const handleUpdateShipment = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingEnc) return;
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    if (!formData.remetente || !formData.destinatario || !formData.empresaId) {
+      setError("Preencha os campos obrigatórios da encomenda.");
+      setSaving(false);
+      return;
+    }
+
+    const { error: updateError } = await supabase.from("encomendas").update({
+      empresa_id: formData.empresaId,
+      remetente_nome: formData.remetente,
+      remetente_endereco: formData.remetenteEndereco || null,
+      remetente_cidade: formData.remetenteCidade || null,
+      destinatario_nome: formData.destinatario,
+      destinatario_endereco: formData.destinatarioEndereco || null,
+      destinatario_cidade: formData.destinatarioCidade,
+      destinatario_telefone: formData.destinatarioTelefone || null,
+      peso_kg: Number(formData.pesoKg || 0),
+      valor_frete: Number(formData.valorFrete || 0),
+      previsao_entrega: formData.previsaoEntrega || null,
+      fragil: formData.fragil,
+      urgente: formData.urgente,
+      observacoes: formData.observacoes || null,
+    }).eq("id", editingEnc.dbId);
+
+    if (updateError) {
+      setError(updateError.message);
+      setSaving(false);
+      return;
+    }
+
+    setFormData(initialForm);
+    setEditingEnc(null);
+    setShowModal(false);
+    setSuccess("Encomenda atualizada com sucesso.");
+    setSaving(false);
+    await loadData();
+  };
+
+  const handleDeleteShipment = async () => {
+    if (!deletingEnc) return;
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    const { error: deleteError } = await supabase.from("encomendas").delete().eq("id", deletingEnc.dbId);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      setSaving(false);
+      setDeletingEnc(null);
+      return;
+    }
+
+    setDeletingEnc(null);
+    setSuccess("Encomenda excluída com sucesso.");
+    setSaving(false);
+    await loadData();
   };
 
   const handleInputChange = (field: keyof typeof initialForm, value: string | boolean) => {
@@ -351,8 +443,11 @@ export default function EncomendasPage() {
                           <button className="btn btn-ghost btn-icon btn-sm" title="Ver detalhes" onClick={() => handleOpenEtiqueta(enc)}>
                             👁️
                           </button>
-                          <button className="btn btn-ghost btn-icon btn-sm" title="Editar" onClick={() => handleOpenEtiqueta(enc)}>
+                          <button className="btn btn-ghost btn-icon btn-sm" title="Editar" onClick={() => handleEdit(enc)}>
                             ✏️
+                          </button>
+                          <button className="btn btn-ghost btn-icon btn-sm" title="Excluir" onClick={() => setDeletingEnc(enc)} style={{ color: "#f87171" }}>
+                            🗑️
                           </button>
                           <button
                             className="btn btn-sm"
@@ -398,15 +493,15 @@ export default function EncomendasPage() {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowModal(false); setEditingEnc(null); setFormData(initialForm); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "720px" }}>
-            <form onSubmit={handleCreateShipment}>
+            <form onSubmit={editingEnc ? handleUpdateShipment : handleCreateShipment}>
               <div className="modal-header">
                 <div>
-                  <div className="modal-title">Nova Encomenda</div>
-                  <div className="modal-subtitle">Preencha os dados para cadastrar</div>
+                  <div className="modal-title">{editingEnc ? "Editar Encomenda" : "Nova Encomenda"}</div>
+                  <div className="modal-subtitle">{editingEnc ? `Editando ${editingEnc.id}` : "Preencha os dados para cadastrar"}</div>
                 </div>
-                <button type="button" className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)} style={{ fontSize: "18px" }}>
+                <button type="button" className="btn btn-ghost btn-icon" onClick={() => { setShowModal(false); setEditingEnc(null); setFormData(initialForm); }} style={{ fontSize: "18px" }}>
                   ✕
                 </button>
               </div>
@@ -487,9 +582,9 @@ export default function EncomendasPage() {
               </div>
               <div className="divider" />
               <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
+                <button type="button" className="btn btn-secondary" onClick={() => { setShowModal(false); setEditingEnc(null); setFormData(initialForm); }}>Cancelar</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Salvando..." : "📦 Cadastrar Encomenda"}
+                  {saving ? "Salvando..." : editingEnc ? "💾 Salvar Alterações" : "📦 Cadastrar Encomenda"}
                 </button>
               </div>
             </form>
@@ -502,6 +597,40 @@ export default function EncomendasPage() {
           data={etiquetaData}
           onClose={() => setEtiquetaData(null)}
         />
+      )}
+
+      {deletingEnc && (
+        <div className="modal-overlay" onClick={() => setDeletingEnc(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "440px" }}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">Excluir Encomenda</div>
+                <div className="modal-subtitle">Esta ação não pode ser desfeita</div>
+              </div>
+              <button type="button" className="btn btn-ghost btn-icon" onClick={() => setDeletingEnc(null)} style={{ fontSize: "18px" }}>
+                ✕
+              </button>
+            </div>
+            <p style={{ color: "var(--text-secondary)", fontSize: "13px", margin: "0 0 8px" }}>
+              Tem certeza que deseja excluir a encomenda <strong style={{ color: "var(--text-primary)" }}>{deletingEnc.id}</strong> de{" "}
+              <strong style={{ color: "var(--text-primary)" }}>{deletingEnc.remetente}</strong> para{" "}
+              <strong style={{ color: "var(--text-primary)" }}>{deletingEnc.destinatario}</strong>?
+            </p>
+            <div className="divider" />
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setDeletingEnc(null)}>Cancelar</button>
+              <button
+                type="button"
+                className="btn"
+                style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)" }}
+                onClick={handleDeleteShipment}
+                disabled={saving}
+              >
+                {saving ? "Excluindo..." : "🗑️ Excluir"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
