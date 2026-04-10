@@ -146,6 +146,10 @@ for each row execute function public.calculate_caixa_venda_total();
 -- VIEWS
 -- ============================================================================
 
+drop view if exists public.vw_caixa_historico_operador;
+drop view if exists public.vw_caixa_resumo_diario;
+drop view if exists public.vw_caixa_vendas_lista;
+
 create or replace view public.vw_caixa_vendas_lista as
 select
   v.id,
@@ -258,6 +262,9 @@ create policy caixa_pagamentos_auth_all on public.caixa_pagamentos for all to au
 grant select, insert, update, delete on public.caixa_sessoes to authenticated;
 grant select, insert, update, delete on public.caixa_vendas to authenticated;
 grant select, insert, update, delete on public.caixa_pagamentos to authenticated;
+grant select on public.vw_caixa_vendas_lista to authenticated;
+grant select on public.vw_caixa_resumo_diario to authenticated;
+grant select on public.vw_caixa_historico_operador to authenticated;
 grant usage, select on sequence public.caixa_sessao_codigo_seq to authenticated;
 grant usage, select on sequence public.caixa_venda_codigo_seq to authenticated;
 

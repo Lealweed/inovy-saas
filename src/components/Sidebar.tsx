@@ -3,6 +3,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
 interface NavItem {
   icon: string;
   label: string;
@@ -27,7 +32,7 @@ const systemNavItems: NavItem[] = [
   { icon: "⚙️", label: "Configurações", href: "/configuracoes" },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -40,8 +45,32 @@ export default function Sidebar() {
     router.push("/");
   };
 
+  const renderNavItem = (item: NavItem) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      className={`sidebar-item ${isActive(item.href) ? "active" : ""}`}
+      title={collapsed ? item.label : undefined}
+    >
+      <span className="sidebar-item-icon">{item.icon}</span>
+      <span>{item.label}</span>
+      {item.badge && <span className="sidebar-badge">{item.badge}</span>}
+      <span className="sidebar-tooltip">{item.label}</span>
+    </Link>
+  );
+
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+      {/* Toggle button */}
+      <button
+        className="sidebar-toggle"
+        onClick={onToggle}
+        title={collapsed ? "Expandir menu" : "Recolher menu"}
+        aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+      >
+        {collapsed ? "▸" : "◂"}
+      </button>
+
       {/* Logo */}
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">In</div>
@@ -53,47 +82,14 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="sidebar-nav">
-        {/* Main */}
         <span className="sidebar-section-label">Principal</span>
-        {mainNavItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`sidebar-item ${isActive(item.href) ? "active" : ""}`}
-          >
-            <span className="sidebar-item-icon">{item.icon}</span>
-            <span>{item.label}</span>
-            {item.badge && (
-              <span className="sidebar-badge">{item.badge}</span>
-            )}
-          </Link>
-        ))}
+        {mainNavItems.map(renderNavItem)}
 
-        {/* Financeiro */}
         <span className="sidebar-section-label">Financeiro</span>
-        {financeNavItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`sidebar-item ${isActive(item.href) ? "active" : ""}`}
-          >
-            <span className="sidebar-item-icon">{item.icon}</span>
-            <span>{item.label}</span>
-          </Link>
-        ))}
+        {financeNavItems.map(renderNavItem)}
 
-        {/* Sistema */}
         <span className="sidebar-section-label">Sistema</span>
-        {systemNavItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`sidebar-item ${isActive(item.href) ? "active" : ""}`}
-          >
-            <span className="sidebar-item-icon">{item.icon}</span>
-            <span>{item.label}</span>
-          </Link>
-        ))}
+        {systemNavItems.map(renderNavItem)}
       </nav>
 
       {/* Footer */}
@@ -101,7 +97,7 @@ export default function Sidebar() {
         <div
           className="sidebar-user"
           onClick={handleLogout}
-          title="Sair do sistema"
+          title={collapsed ? "Sair" : "Sair do sistema"}
         >
           <div className="sidebar-avatar">AD</div>
           <div className="sidebar-user-info">
