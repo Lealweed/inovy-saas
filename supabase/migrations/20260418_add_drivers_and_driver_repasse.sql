@@ -34,7 +34,8 @@ end $$;
 -- FUNÇÕES AUXILIARES PARA RLS
 -- ============================================================================
 
-create or replace function public.current_profile_role()
+drop function if exists public.drivers_current_profile_role();
+create function public.drivers_current_profile_role()
 returns text
 language sql
 stable
@@ -42,7 +43,8 @@ as $$
   select coalesce((select role::text from public.profiles where id = auth.uid()), 'operacional');
 $$;
 
-create or replace function public.current_profile_office_id()
+drop function if exists public.drivers_current_profile_office_id();
+create function public.drivers_current_profile_office_id()
 returns uuid
 language plpgsql
 stable
@@ -171,19 +173,19 @@ drop policy if exists drivers_admin_all on public.drivers;
 create policy drivers_admin_all on public.drivers
   for all to authenticated
   using (
-    public.current_profile_role() = 'admin'
+    public.drivers_current_profile_role() = 'admin'
     and (
-      public.current_profile_office_id() is null
+      public.drivers_current_profile_office_id() is null
       or office_id is null
-      or office_id = public.current_profile_office_id()
+      or office_id = public.drivers_current_profile_office_id()
     )
   )
   with check (
-    public.current_profile_role() = 'admin'
+    public.drivers_current_profile_role() = 'admin'
     and (
-      public.current_profile_office_id() is null
+      public.drivers_current_profile_office_id() is null
       or office_id is null
-      or office_id = public.current_profile_office_id()
+      or office_id = public.drivers_current_profile_office_id()
     )
   );
 
@@ -192,11 +194,11 @@ create policy drivers_operacional_select on public.drivers
   for select to authenticated
   using (
     active = true
-    and public.current_profile_role() in ('operacional', 'admin', 'financeiro')
+    and public.drivers_current_profile_role() in ('operacional', 'admin', 'financeiro')
     and (
-      public.current_profile_office_id() is null
+      public.drivers_current_profile_office_id() is null
       or office_id is null
-      or office_id = public.current_profile_office_id()
+      or office_id = public.drivers_current_profile_office_id()
     )
   );
 
