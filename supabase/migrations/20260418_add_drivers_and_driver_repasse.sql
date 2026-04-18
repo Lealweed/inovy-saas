@@ -53,22 +53,17 @@ set search_path = public
 as $$
 declare
   office_value uuid;
-  has_column boolean;
 begin
-  select exists (
-    select 1
-    from information_schema.columns
-    where table_schema = 'public'
-      and table_name = 'profiles'
-      and column_name = 'office_id'
-  ) into has_column;
-
-  if has_column then
+  begin
     execute 'select office_id from public.profiles where id = auth.uid()' into office_value;
-    return office_value;
-  end if;
+  exception
+    when undefined_column then
+      office_value := null;
+    when undefined_table then
+      office_value := null;
+  end;
 
-  return null;
+  return office_value;
 end;
 $$;
 
