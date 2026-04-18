@@ -136,15 +136,13 @@ where kind is null;
 -- VIEW FINANCEIRA COM MOTORISTA/EMPRESA
 -- ============================================================================
 
-create or replace view public.vw_financeiro_lancamentos as
+drop view if exists public.vw_financeiro_lancamentos;
+create view public.vw_financeiro_lancamentos as
 select
   fl.id,
   fl.codigo,
   fl.tipo,
   fl.categoria,
-  fl.kind,
-  fl.company_id,
-  fl.driver_id,
   fl.descricao,
   fl.favorecido_nome,
   fl.valor,
@@ -153,11 +151,14 @@ select
   fl.data_lancamento,
   fl.data_pagamento,
   fl.status,
-  fl.payment_method,
   fl.observacoes,
+  fl.created_at,
+  fl.kind,
+  fl.company_id,
+  fl.driver_id,
+  fl.payment_method,
   d.name as driver_name,
-  e.nome as company_name,
-  fl.created_at
+  e.nome as company_name
 from public.financeiro_lancamentos fl
 left join public.drivers d on d.id = fl.driver_id
 left join public.empresas e on e.id = fl.company_id
