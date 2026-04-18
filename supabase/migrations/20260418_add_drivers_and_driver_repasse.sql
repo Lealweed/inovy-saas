@@ -31,41 +31,9 @@ exception when duplicate_object then null;
 end $$;
 
 -- ============================================================================
--- FUNÇÕES AUXILIARES PARA RLS
+-- RLS direto via profiles
+-- Evita dependência de funções auxiliares e conflitos com schemas antigos.
 -- ============================================================================
-
-drop function if exists public.drivers_current_profile_role();
-create function public.drivers_current_profile_role()
-returns text
-language sql
-stable
-as $$
-  select coalesce((select role::text from public.profiles where id = auth.uid()), 'operacional');
-$$;
-
-drop function if exists public.drivers_current_profile_office_id();
-create function public.drivers_current_profile_office_id()
-returns uuid
-language plpgsql
-stable
-security definer
-set search_path = public
-as $$
-declare
-  office_value uuid;
-begin
-  begin
-    execute 'select office_id from public.profiles where id = auth.uid()' into office_value;
-  exception
-    when undefined_column then
-      office_value := null;
-    when undefined_table then
-      office_value := null;
-  end;
-
-  return office_value;
-end;
-$$;
 
 -- ============================================================================
 -- TABELA: MOTORISTAS
@@ -169,19 +137,19 @@ drop policy if exists drivers_admin_all on public.drivers;
 create policy drivers_admin_all on public.drivers
   for all to authenticated
   using (
-    public.drivers_current_profile_role() = 'admin'
-    and (
-      public.drivers_current_profile_office_id() is null
-      or office_id is null
-      or office_id = public.drivers_current_profile_office_id()
+    exists (
+      select 1
+      from public.profiles p
+      where p.id = auth.uid()
+        and p.role = 'admin'
     )
   )
   with check (
-    public.drivers_current_profile_role() = 'admin'
-    and (
-      public.drivers_current_profile_office_id() is null
-      or office_id is null
-      or office_id = public.drivers_current_profile_office_id()
+    exists (
+      select 1
+      from public.profiles p
+      where p.id = auth.uid()
+        and p.role = 'admin'
     )
   );
 
@@ -190,11 +158,11 @@ create policy drivers_operacional_select on public.drivers
   for select to authenticated
   using (
     active = true
-    and public.drivers_current_profile_role() in ('operacional', 'admin', 'financeiro')
-    and (
-      public.drivers_current_profile_office_id() is null
-      or office_id is null
-      or office_id = public.drivers_current_profile_office_id()
+    or exists (
+      select 1
+      from public.profiles p
+      where p.id = auth.uid()
+        and p.role in ('admin', 'financeiro')
     )
   );
 
