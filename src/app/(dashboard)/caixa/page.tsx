@@ -1041,7 +1041,7 @@ export default function CaixaPage() {
   // ============================================================================
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in w-full max-w-[1600px] mx-auto px-4 md:px-6">
       {/* HEADER */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", gap: "12px", flexWrap: "wrap" }}>
         <div>
@@ -1085,22 +1085,19 @@ export default function CaixaPage() {
         ))}
       </div>
 
-      <div style={{ marginBottom: "12px" }}>
-        <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
-          1. Bloco principal de lançamento
-        </div>
-      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start" style={{ marginBottom: "24px" }}>
+        <div className="xl:col-span-8" style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: "24px" }}>
+          <div>
+            <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
+              1. Bloco principal de lançamento
+            </div>
+          </div>
 
-      <div className="grid-3" style={{ gridTemplateColumns: "1.7fr 1fr", gap: "20px", alignItems: "start", marginBottom: "24px" }}>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-
-          {/* FORMULÁRIO DE VENDA */}
           <div className="card">
             <div className="card-header">
               <div>
-                <div className="card-title">Lançamento principal do guichê</div>
-                <div className="card-subtitle">Preencha os dados principais, revise o cálculo em tempo real e então salve.</div>
+                <div className="card-title">Lançamento de caixa</div>
+                <div className="card-subtitle">Preencha os dados do atendimento e acompanhe o resultado em tempo real.</div>
               </div>
             </div>
 
@@ -1140,9 +1137,8 @@ export default function CaixaPage() {
                 <div className="input-group"><label>Acréscimo</label><input type="number" min="0" step="0.01" value={saleForm.surcharge} onChange={(e) => handleSaleFieldChange("surcharge", e.target.value)} /></div>
               </div>
 
-              {/* PAGAMENTOS */}
               <div className="card" style={{ background: "var(--bg-elevated)", borderColor: "var(--border-subtle)" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px", gap: "12px", flexWrap: "wrap" }}>
                   <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-secondary)" }}>Formas de pagamento</div>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddPaymentLine} disabled={paymentLines.length >= 5}>+ Adicionar</button>
                 </div>
@@ -1165,13 +1161,23 @@ export default function CaixaPage() {
                 </div>
               </div>
 
-              {/* RESUMO DA VENDA */}
-              <div className="grid-2">
-                <div className="input-group">
-                  <label>Observações</label>
-                  <textarea rows={3} style={{ resize: "none" }} placeholder="Observações do balcão" value={saleForm.notes} onChange={(e) => handleSaleFieldChange("notes", e.target.value)} />
+              <div className="input-group">
+                <label>Observações</label>
+                <textarea rows={3} style={{ resize: "none" }} placeholder="Observações do balcão" value={saleForm.notes} onChange={(e) => handleSaleFieldChange("notes", e.target.value)} />
+              </div>
+
+              <div className="card" style={{ background: "var(--bg-elevated)", borderColor: "var(--border-subtle)", minHeight: "220px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", flexWrap: "wrap", marginBottom: "12px" }}>
+                  <div>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-secondary)" }}>Resultado em tempo real</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Totais atualizados automaticamente durante o lançamento</div>
+                  </div>
+                  <span className={`badge ${paymentShortage > 0.01 ? "badge-danger" : changeAmount > 0.01 ? "badge-warning" : "badge-success"}`}>
+                    {paymentShortage > 0.01 ? "Pagamento incompleto" : changeAmount > 0.01 ? "Troco calculado" : "Valor conferido"}
+                  </span>
                 </div>
-                <div className="card" style={{ background: "var(--bg-elevated)", borderColor: "var(--border-subtle)" }}>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Subtotal</span><strong>{formatCurrencyBRL(toNumber(saleForm.quantity) * toNumber(saleForm.unitPrice))}</strong></div>
                     <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Desconto</span><strong>- {formatCurrencyBRL(toNumber(saleForm.discount))}</strong></div>
@@ -1182,6 +1188,16 @@ export default function CaixaPage() {
                       <strong style={{ color: "var(--brand-success)" }}>{formatCurrencyBRL(saleTotal)}</strong>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Pagamentos</span><strong>{formatCurrencyBRL(paymentTotal)}</strong></div>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Recebimento informado</div>
+                    {paymentLines.map((line, index) => (
+                      <div key={`${line.id}-preview`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "8px 10px", borderRadius: "10px", background: "rgba(255,255,255,0.03)" }}>
+                        <span style={{ color: "var(--text-secondary)" }}>{paymentOptions.find((opt) => opt.value === line.method)?.icon} Método {index + 1}</span>
+                        <strong>{formatCurrencyBRL(toNumber(line.amount))}</strong>
+                      </div>
+                    ))}
                     {changeAmount > 0 && (
                       <div style={{ display: "flex", justifyContent: "space-between", color: "#93c5fd" }}>
                         <span>Troco</span><strong>{formatCurrencyBRL(changeAmount)}</strong>
@@ -1201,7 +1217,7 @@ export default function CaixaPage() {
                 </div>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", flexWrap: "wrap" }}>
                 <button type="button" className="btn btn-secondary" onClick={resetSaleForm}>Limpar</button>
                 <button type="submit" className="btn btn-primary" disabled={submittingSale || loading || !openSession}>
                   {submittingSale ? "Salvando..." : "💾 Salvar"}
@@ -1210,129 +1226,74 @@ export default function CaixaPage() {
             </form>
           </div>
 
-
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-          <div className="card">
-            <div className="card-header">
-              <div>
-                <div className="card-title">Ações operacionais</div>
-                <div className="card-subtitle">Atalhos críticos para uso no guichê</div>
-              </div>
+          <div className="card" style={{ padding: 0 }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-subtle)" }}>
+              <div className="card-title">Histórico rápido</div>
+              <div className="card-subtitle">Últimos recebimentos registrados no caixa com ações imediatas</div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <button type="button" className="btn btn-secondary" onClick={() => latestPaidSale && handlePrintReceipt(latestPaidSale)} disabled={!latestPaidSale}>
-                🖨️ Reimprimir último recibo
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={handleExportClosingHistoryCsv}>
-                📥 Exportar histórico do dia
-              </button>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                Use primeiro os botões de salvar e finalizar; os atalhos ficam aqui como apoio rápido.
-              </div>
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Cliente</th>
+                    <th>Serviço</th>
+                    <th>Pagamento</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th>Data</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)" }}>Carregando caixa...</td></tr>
+                  ) : sales.length === 0 ? (
+                    <tr><td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)" }}>Nenhuma venda lançada hoje.</td></tr>
+                  ) : (
+                    sales.map((sale) => {
+                      const st = saleStatusMap[sale.status] ?? saleStatusMap.pago;
+                      return (
+                        <tr key={sale.id}>
+                          <td>
+                            <strong style={{ fontFamily: "monospace", fontSize: "12px" }}>{sale.codigo}</strong>
+                            <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{sale.sessao_codigo}</div>
+                          </td>
+                          <td style={{ fontSize: "12px" }}>{sale.cliente_nome ?? "Cliente balcão"}</td>
+                          <td>
+                            <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{sale.descricao}</div>
+                            <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "capitalize" }}>{sale.categoria}</div>
+                          </td>
+                          <td style={{ fontSize: "11px", textTransform: "capitalize" }}>
+                            {(sale.formas_pagamento ?? "—").replaceAll("_", " ")}
+                            {sale.referencia_pagamento && <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>Ref.: {sale.referencia_pagamento}</div>}
+                          </td>
+                          <td><span className={`badge ${st.className}`}>{st.label}</span></td>
+                          <td><strong style={{ color: sale.status === "estornado" ? "#fca5a5" : "var(--brand-success)", fontSize: "12px" }}>{formatCurrencyBRL(sale.valor_total)}</strong></td>
+                          <td style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDateTimeBR(sale.created_at)}</td>
+                          <td>
+                            <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                              <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => handlePrintReceipt(sale)} title="Imprimir">🖨️</button>
+                              <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditModal(sale)} title="Editar" disabled={sale.status !== "pago"} style={{ opacity: sale.status === "pago" ? 1 : 0.35 }}>✏️</button>
+                              <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => openRefundModal(sale)} title="Estornar" disabled={sale.status !== "pago"} style={{ opacity: sale.status === "pago" ? 1 : 0.35 }}>↩️</button>
+                              <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => openDeleteModal(sale)} title="Excluir" style={{ opacity: 0.6 }}>🗑️</button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
+        </div>
 
-          {/* CONTROLE DO CAIXA */}
-          <div className="card">
-            <div className="card-header">
-              <div>
-                <div className="card-title">Controle do Caixa</div>
-                <div className="card-subtitle">Abertura, fechamento e conferência</div>
-              </div>
+        <div className="xl:col-span-4" style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: "24px" }}>
+          <div>
+            <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
+              2. Bloco de ações operacionais
             </div>
-
-            {!openSession ? (
-              <form onSubmit={handleOpenSession} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                <div className="input-group"><label>Valor de abertura</label><input type="number" min="0" step="0.01" value={openingValue} onChange={(e) => setOpeningValue(e.target.value)} /></div>
-                <div className="input-group"><label>Observações</label><textarea rows={3} style={{ resize: "none" }} value={openingNotes} onChange={(e) => setOpeningNotes(e.target.value)} placeholder="Ex.: troco inicial" /></div>
-                <button type="submit" className="btn btn-primary" disabled={openingSession}>{openingSession ? "Abrindo..." : "🔓 Abrir caixa"}</button>
-              </form>
-            ) : (
-              <form onSubmit={handleCloseSession} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {/* Info da sessão */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Sessão</span><strong>{openSession.codigo}</strong></div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Abertura</span><strong>{formatCurrencyBRL(openSession.valor_abertura)}</strong></div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Aberto em</span><strong>{formatDateTimeBR(openSession.aberto_em)}</strong></div>
-                </div>
-                <div className="divider" />
-
-                {/* Resumo da sessão */}
-                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Resumo da Sessão</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Vendas pagas</span><strong style={{ color: "var(--brand-success)" }}>{sessionSummary.qtdPago} — {formatCurrencyBRL(sessionSummary.totalPago)}</strong></div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Estornos</span><strong style={{ color: "#fca5a5" }}>{sessionSummary.qtdEstornado} — {formatCurrencyBRL(sessionSummary.totalEstornado)}</strong></div>
-                  {(sessionSummary.totalSangria > 0 || sessionSummary.totalReforco > 0) && (
-                    <>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Sangrias</span><strong style={{ color: "#fca5a5" }}>- {formatCurrencyBRL(sessionSummary.totalSangria)}</strong></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Reforços</span><strong style={{ color: "#93c5fd" }}>+ {formatCurrencyBRL(sessionSummary.totalReforco)}</strong></div>
-                    </>
-                  )}
-                </div>
-                <div className="divider" />
-
-                {/* Por forma de pagamento */}
-                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Por Forma de Pagamento</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px" }}>
-                  {paymentOptions.map((opt) => (
-                    <div key={opt.value} style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ color: "var(--text-muted)" }}>{opt.icon} {opt.label}</span>
-                      <strong>{formatCurrencyBRL(sessionSummary[opt.value as keyof SessionSummary] as number)}</strong>
-                    </div>
-                  ))}
-                </div>
-                <div className="divider" />
-
-                {/* Conferência */}
-                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Conferência de Caixa (Dinheiro)</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Abertura</span><strong>{formatCurrencyBRL(toNumber(openSession.valor_abertura))}</strong></div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>+ Dinheiro recebido</span><strong>{formatCurrencyBRL(sessionSummary.dinheiro)}</strong></div>
-                  {sessionSummary.totalSangria > 0 && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>- Sangrias</span><strong>{formatCurrencyBRL(sessionSummary.totalSangria)}</strong></div>}
-                  {sessionSummary.totalReforco > 0 && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>+ Reforços</span><strong>{formatCurrencyBRL(sessionSummary.totalReforco)}</strong></div>}
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
-                    <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>= Esperado no caixa</span>
-                    <strong style={{ color: "var(--brand-success)" }}>{formatCurrencyBRL(expectedCashAmount)}</strong>
-                  </div>
-                </div>
-
-                <div className="input-group"><label>Valor contado no caixa físico</label><input type="number" min="0" step="0.01" value={closingValue} onChange={(e) => setClosingValue(e.target.value)} placeholder={String(expectedCashAmount)} /></div>
-
-                {closingValue && (
-                  <div style={{ padding: "10px 14px", borderRadius: "10px", fontSize: "13px", fontWeight: 600, textAlign: "center",
-                    background: closingVariance === 0 ? "rgba(34,197,94,0.1)" : closingVariance > 0 ? "rgba(59,130,246,0.1)" : "rgba(239,68,68,0.1)",
-                    color: closingVariance === 0 ? "#86efac" : closingVariance > 0 ? "#93c5fd" : "#fca5a5",
-                    border: `1px solid ${closingVariance === 0 ? "rgba(34,197,94,0.2)" : closingVariance > 0 ? "rgba(59,130,246,0.2)" : "rgba(239,68,68,0.2)"}`,
-                  }}>
-                    {closingVariance === 0 ? "✓ Caixa conferido — sem diferença" : closingVariance > 0 ? `↑ Sobra de ${formatCurrencyBRL(closingVariance)}` : `↓ Falta de ${formatCurrencyBRL(Math.abs(closingVariance))}`}
-                  </div>
-                )}
-
-                <div className="input-group"><label>Observações</label><textarea rows={2} style={{ resize: "none" }} value={closingNotes} onChange={(e) => setClosingNotes(e.target.value)} placeholder="Ex.: conferência ok" /></div>
-
-                {/* Botões de sangria/reforço */}
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button type="button" className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => openSangriaModal("sangria")}>💸 Sangria</button>
-                  <button type="button" className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => openSangriaModal("reforco")}>💵 Reforço</button>
-                </div>
-
-                {/* Confirmação de fechamento */}
-                {showClosingConfirm ? (
-                  <div style={{ padding: "12px 14px", borderRadius: "10px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", display: "flex", flexDirection: "column", gap: "10px" }}>
-                    <div style={{ fontSize: "12px", color: "#fca5a5", fontWeight: 600, textAlign: "center" }}>Confirma o fechamento do caixa {openSession.codigo}?</div>
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>O relatório será impresso automaticamente.</div>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowClosingConfirm(false)}>Cancelar</button>
-                      <button type="submit" className="btn btn-primary" style={{ flex: 1, background: "#dc2626" }} disabled={closingSession}>{closingSession ? "Fechando..." : "Confirmar"}</button>
-                    </div>
-                  </div>
-                ) : (
-                  <button type="submit" className="btn btn-secondary" disabled={closingSession}>🔒 Fechar caixa</button>
-                )}
-              </form>
-            )}
           </div>
 
           <div className="card">
@@ -1404,98 +1365,127 @@ export default function CaixaPage() {
           </div>
 
           <div className="card">
-            <div className="card-header"><div><div className="card-title">Histórico rápido do operador</div><div className="card-subtitle">Sessões recentes de {currentUser?.email ?? "operador"}</div></div></div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}><span style={{ color: "var(--text-muted)" }}>Sessões</span><strong>{operatorHistory.length}</strong></div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}><span style={{ color: "var(--text-muted)" }}>Total movimentado</span><strong>{formatCurrencyBRL(operatorTotal)}</strong></div>
-              <div className="divider" />
-              {operatorHistory.length === 0 ? (
-                <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Nenhuma sessão registrada.</div>
-              ) : (
-                operatorHistory.map((session: any) => (
-                  <div key={session.id} style={{ padding: "10px 12px", border: "1px solid var(--border-subtle)", borderRadius: "10px", background: "var(--bg-elevated)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                      <strong style={{ fontSize: "12px" }}>{session.codigo}</strong>
-                      <span className={`badge ${session.status === "aberto" ? "badge-success" : "badge-muted"}`}>{session.status}</span>
+            <div className="card-header">
+              <div>
+                <div className="card-title">Ações rápidas do caixa</div>
+                <div className="card-subtitle">Abertura, sangria, reforço e fechamento com conferência</div>
+              </div>
+            </div>
+
+            {!openSession ? (
+              <form onSubmit={handleOpenSession} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div className="input-group"><label>Valor de abertura</label><input type="number" min="0" step="0.01" value={openingValue} onChange={(e) => setOpeningValue(e.target.value)} /></div>
+                <div className="input-group"><label>Observações</label><textarea rows={3} style={{ resize: "none" }} value={openingNotes} onChange={(e) => setOpeningNotes(e.target.value)} placeholder="Ex.: troco inicial" /></div>
+                <button type="submit" className="btn btn-primary" disabled={openingSession}>{openingSession ? "Abrindo..." : "🔓 Abrir caixa"}</button>
+              </form>
+            ) : (
+              <form onSubmit={handleCloseSession} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Sessão</span><strong>{openSession.codigo}</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Abertura</span><strong>{formatCurrencyBRL(openSession.valor_abertura)}</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Aberto em</span><strong>{formatDateTimeBR(openSession.aberto_em)}</strong></div>
+                </div>
+                <div className="divider" />
+
+                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Resumo da Sessão</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Vendas pagas</span><strong style={{ color: "var(--brand-success)" }}>{sessionSummary.qtdPago} — {formatCurrencyBRL(sessionSummary.totalPago)}</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Estornos</span><strong style={{ color: "#fca5a5" }}>{sessionSummary.qtdEstornado} — {formatCurrencyBRL(sessionSummary.totalEstornado)}</strong></div>
+                  {(sessionSummary.totalSangria > 0 || sessionSummary.totalReforco > 0) && (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Sangrias</span><strong style={{ color: "#fca5a5" }}>- {formatCurrencyBRL(sessionSummary.totalSangria)}</strong></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Reforços</span><strong style={{ color: "#93c5fd" }}>+ {formatCurrencyBRL(sessionSummary.totalReforco)}</strong></div>
+                    </>
+                  )}
+                </div>
+                <div className="divider" />
+
+                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Por Forma de Pagamento</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px" }}>
+                  {paymentOptions.map((opt) => (
+                    <div key={opt.value} style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "var(--text-muted)" }}>{opt.icon} {opt.label}</span>
+                      <strong>{formatCurrencyBRL(sessionSummary[opt.value as keyof SessionSummary] as number)}</strong>
                     </div>
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDateTimeBR(session.aberto_em)}</div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "11px" }}>
-                      <span style={{ color: "var(--text-muted)" }}>Atendimentos: {session.total_atendimentos}</span>
-                      <strong>{formatCurrencyBRL(session.total_pago)}</strong>
+                  ))}
+                </div>
+                <div className="divider" />
+
+                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Conferência de Caixa (Dinheiro)</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>Abertura</span><strong>{formatCurrencyBRL(toNumber(openSession.valor_abertura))}</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>+ Dinheiro recebido</span><strong>{formatCurrencyBRL(sessionSummary.dinheiro)}</strong></div>
+                  {sessionSummary.totalSangria > 0 && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>- Sangrias</span><strong>{formatCurrencyBRL(sessionSummary.totalSangria)}</strong></div>}
+                  {sessionSummary.totalReforco > 0 && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--text-muted)" }}>+ Reforços</span><strong>{formatCurrencyBRL(sessionSummary.totalReforco)}</strong></div>}
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                    <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>= Esperado no caixa</span>
+                    <strong style={{ color: "var(--brand-success)" }}>{formatCurrencyBRL(expectedCashAmount)}</strong>
+                  </div>
+                </div>
+
+                <div className="input-group"><label>Valor contado no caixa físico</label><input type="number" min="0" step="0.01" value={closingValue} onChange={(e) => setClosingValue(e.target.value)} placeholder={String(expectedCashAmount)} /></div>
+
+                {closingValue && (
+                  <div style={{ padding: "10px 14px", borderRadius: "10px", fontSize: "13px", fontWeight: 600, textAlign: "center",
+                    background: closingVariance === 0 ? "rgba(34,197,94,0.1)" : closingVariance > 0 ? "rgba(59,130,246,0.1)" : "rgba(239,68,68,0.1)",
+                    color: closingVariance === 0 ? "#86efac" : closingVariance > 0 ? "#93c5fd" : "#fca5a5",
+                    border: `1px solid ${closingVariance === 0 ? "rgba(34,197,94,0.2)" : closingVariance > 0 ? "rgba(59,130,246,0.2)" : "rgba(239,68,68,0.2)"}`,
+                  }}>
+                    {closingVariance === 0 ? "✓ Caixa conferido — sem diferença" : closingVariance > 0 ? `↑ Sobra de ${formatCurrencyBRL(closingVariance)}` : `↓ Falta de ${formatCurrencyBRL(Math.abs(closingVariance))}`}
+                  </div>
+                )}
+
+                <div className="input-group"><label>Observações</label><textarea rows={2} style={{ resize: "none" }} value={closingNotes} onChange={(e) => setClosingNotes(e.target.value)} placeholder="Ex.: conferência ok" /></div>
+
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button type="button" className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => openSangriaModal("sangria")}>💸 Sangria</button>
+                  <button type="button" className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => openSangriaModal("reforco")}>💵 Reforço</button>
+                </div>
+
+                {showClosingConfirm ? (
+                  <div style={{ padding: "12px 14px", borderRadius: "10px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <div style={{ fontSize: "12px", color: "#fca5a5", fontWeight: 600, textAlign: "center" }}>Confirma o fechamento do caixa {openSession.codigo}?</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>O relatório será impresso automaticamente.</div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowClosingConfirm(false)}>Cancelar</button>
+                      <button type="submit" className="btn btn-primary" style={{ flex: 1, background: "#dc2626" }} disabled={closingSession}>{closingSession ? "Fechando..." : "Confirmar"}</button>
                     </div>
                   </div>
-                ))
-              )}
+                ) : (
+                  <button type="submit" className="btn btn-secondary" disabled={closingSession}>🔒 Fechar caixa</button>
+                )}
+              </form>
+            )}
+          </div>
+
+          <div className="card" style={{ minHeight: "180px" }}>
+            <div className="card-header">
+              <div>
+                <div className="card-title">Atalhos e utilidades</div>
+                <div className="card-subtitle">Apoio operacional sem tirar foco do lançamento</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <button type="button" className="btn btn-secondary" onClick={() => latestPaidSale && handlePrintReceipt(latestPaidSale)} disabled={!latestPaidSale}>
+                🖨️ Reimprimir último recibo
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={handleExportClosingHistoryCsv}>
+                📥 Exportar histórico do dia
+              </button>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}><span style={{ color: "var(--text-muted)" }}>Sessões do operador</span><strong>{operatorHistory.length}</strong></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}><span style={{ color: "var(--text-muted)" }}>Total movimentado</span><strong>{formatCurrencyBRL(operatorTotal)}</strong></div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div style={{ marginTop: "8px", marginBottom: "10px" }}>
-        <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
-          2. Bloco de ações operacionais
-        </div>
-      </div>
-
-      <div className="card" style={{ padding: 0, marginBottom: "16px" }}>
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-subtle)" }}>
-          <div className="card-title">Histórico rápido do dia</div>
-          <div className="card-subtitle">Últimos recebimentos registrados no caixa com ações imediatas</div>
-        </div>
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Cliente</th>
-                <th>Serviço</th>
-                <th>Pagamento</th>
-                <th>Status</th>
-                <th>Total</th>
-                <th>Data</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)" }}>Carregando caixa...</td></tr>
-              ) : sales.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)" }}>Nenhuma venda lançada hoje.</td></tr>
-              ) : (
-                sales.map((sale) => {
-                  const st = saleStatusMap[sale.status] ?? saleStatusMap.pago;
-                  return (
-                    <tr key={sale.id}>
-                      <td>
-                        <strong style={{ fontFamily: "monospace", fontSize: "12px" }}>{sale.codigo}</strong>
-                        <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{sale.sessao_codigo}</div>
-                      </td>
-                      <td style={{ fontSize: "12px" }}>{sale.cliente_nome ?? "Cliente balcão"}</td>
-                      <td>
-                        <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{sale.descricao}</div>
-                        <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "capitalize" }}>{sale.categoria}</div>
-                      </td>
-                      <td style={{ fontSize: "11px", textTransform: "capitalize" }}>
-                        {(sale.formas_pagamento ?? "—").replaceAll("_", " ")}
-                        {sale.referencia_pagamento && <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>Ref.: {sale.referencia_pagamento}</div>}
-                      </td>
-                      <td><span className={`badge ${st.className}`}>{st.label}</span></td>
-                      <td><strong style={{ color: sale.status === "estornado" ? "#fca5a5" : "var(--brand-success)", fontSize: "12px" }}>{formatCurrencyBRL(sale.valor_total)}</strong></td>
-                      <td style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDateTimeBR(sale.created_at)}</td>
-                      <td>
-                        <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
-                          <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => handlePrintReceipt(sale)} title="Imprimir">🖨️</button>
-                          <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditModal(sale)} title="Editar" disabled={sale.status !== "pago"} style={{ opacity: sale.status === "pago" ? 1 : 0.35 }}>✏️</button>
-                          <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => openRefundModal(sale)} title="Estornar" disabled={sale.status !== "pago"} style={{ opacity: sale.status === "pago" ? 1 : 0.35 }}>↩️</button>
-                          <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => openDeleteModal(sale)} title="Excluir" style={{ opacity: 0.6 }}>🗑️</button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+          <div className="card">
+            <div className="card-header"><div><div className="card-title">Dicas</div><div className="card-subtitle">Apoio visual no final da coluna lateral</div></div></div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "12px", color: "var(--text-secondary)" }}>
+              <div>• Abra o caixa antes de iniciar os lançamentos do turno.</div>
+              <div>• Revise o cálculo em tempo real antes de salvar ou finalizar.</div>
+              <div>• Use reimpressão apenas quando houver necessidade operacional.</div>
+              <div>• Em caso de diferença, registre observações claras no fechamento.</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1639,12 +1629,28 @@ export default function CaixaPage() {
         </div>
 
         <div className="card">
-          <div className="card-header"><div><div className="card-title">Dicas, observações e ajuda</div><div className="card-subtitle">Apoio visual no final da página</div></div></div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "12px", color: "var(--text-secondary)" }}>
-            <div>• Abra o caixa antes de iniciar os lançamentos do turno.</div>
-            <div>• Revise o cálculo em tempo real antes de salvar ou finalizar.</div>
-            <div>• Use reimpressão apenas quando houver necessidade operacional.</div>
-            <div>• Em caso de diferença, registre observações claras no fechamento.</div>
+          <div className="card-header"><div><div className="card-title">Histórico do operador</div><div className="card-subtitle">Consulta auxiliar no final da página</div></div></div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}><span style={{ color: "var(--text-muted)" }}>Sessões</span><strong>{operatorHistory.length}</strong></div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}><span style={{ color: "var(--text-muted)" }}>Total movimentado</span><strong>{formatCurrencyBRL(operatorTotal)}</strong></div>
+            <div className="divider" />
+            {operatorHistory.length === 0 ? (
+              <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Nenhuma sessão registrada.</div>
+            ) : (
+              operatorHistory.slice(0, 4).map((session: any) => (
+                <div key={session.id} style={{ padding: "10px 12px", border: "1px solid var(--border-subtle)", borderRadius: "10px", background: "var(--bg-elevated)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                    <strong style={{ fontSize: "12px" }}>{session.codigo}</strong>
+                    <span className={`badge ${session.status === "aberto" ? "badge-success" : "badge-muted"}`}>{session.status}</span>
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDateTimeBR(session.aberto_em)}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "11px" }}>
+                    <span style={{ color: "var(--text-muted)" }}>Atendimentos: {session.total_atendimentos}</span>
+                    <strong>{formatCurrencyBRL(session.total_pago)}</strong>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
