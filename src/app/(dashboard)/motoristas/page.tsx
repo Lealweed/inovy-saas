@@ -33,6 +33,8 @@ export default function MotoristasPage() {
   const [drivers, setDrivers] = useState<DriverCard[]>([]);
   const [companies, setCompanies] = useState<EmpresaOption[]>([]);
   const [search, setSearch] = useState("");
+  const [selectedCompany, setSelectedCompany] = useState("");
+  const [statusFilter, setStatusFilter] = useState("todos");
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -87,15 +89,17 @@ export default function MotoristasPage() {
 
   const filteredDrivers = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return drivers;
 
-    return drivers.filter((driver) =>
-      [driver.name, driver.phone, driver.companyName, driver.truckModel, driver.truckPlate]
+    return drivers.filter((driver) => {
+      const matchesSearch = !term || [driver.name, driver.phone, driver.companyName, driver.truckModel, driver.truckPlate]
         .join(" ")
         .toLowerCase()
-        .includes(term),
-    );
-  }, [drivers, search]);
+        .includes(term);
+      const matchesCompany = !selectedCompany || driver.companyId === selectedCompany;
+      const matchesStatus = statusFilter === "todos" || (statusFilter === "ativos" ? driver.active : !driver.active);
+      return matchesSearch && matchesCompany && matchesStatus;
+    });
+  }, [drivers, search, selectedCompany, statusFilter]);
 
   const handleInputChange = (field: keyof typeof initialForm, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -207,7 +211,7 @@ export default function MotoristasPage() {
             Motoristas
           </h2>
           <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
-            {totalDrivers} cadastrados · {activeDrivers} ativos
+            Central Viagens · {totalDrivers} cadastrados · {activeDrivers} ativos
           </p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowModal(true)}>
@@ -252,8 +256,19 @@ export default function MotoristasPage() {
             placeholder="🔍 Buscar por nome, empresa, telefone ou placa..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ maxWidth: "420px", flex: 1 }}
+            style={{ maxWidth: "320px", flex: 1 }}
           />
+          <select value={selectedCompany} onChange={(e) => setSelectedCompany(e.target.value)} style={{ minWidth: "220px" }}>
+            <option value="">Todas as empresas</option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>{company.nome}</option>
+            ))}
+          </select>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ minWidth: "160px" }}>
+            <option value="todos">Todos</option>
+            <option value="ativos">Somente ativos</option>
+            <option value="inativos">Somente inativos</option>
+          </select>
         </div>
       </div>
 

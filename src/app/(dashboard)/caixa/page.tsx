@@ -96,6 +96,29 @@ interface CaixaDriverOption {
   active: boolean;
 }
 
+interface CashClosingHistoryRow {
+  id: string;
+  date: string;
+  office_id: string | null;
+  user_id: string | null;
+  operador: string;
+  company: string;
+  total_informado: number;
+  total_lancado: number;
+  diferenca: number;
+  status: string;
+  created_at: string;
+  codigo: string;
+  aberto_em: string | null;
+  fechado_em: string | null;
+  valor_abertura: number;
+  total_pago: number;
+  total_estornado: number;
+  total_sangria: number;
+  total_reforco: number;
+  observacoes: string;
+}
+
 // ============================================================================
 // CONSTANTES
 // ============================================================================
@@ -195,6 +218,7 @@ export default function CaixaPage() {
   const [sessionSummary, setSessionSummary] = useState<SessionSummary>(emptySessionSummary);
   const [companies, setCompanies] = useState<CaixaEmpresaOption[]>([]);
   const [drivers, setDrivers] = useState<CaixaDriverOption[]>([]);
+  const [closingHistory, setClosingHistory] = useState<CashClosingHistoryRow[]>([]);
 
   // UI
   const messageRef = useRef<HTMLDivElement>(null);
@@ -233,6 +257,13 @@ export default function CaixaPage() {
   const [sangriaValue, setSangriaValue] = useState("");
   const [sangriaMotivo, setSangriaMotivo] = useState("");
   const [submittingSangria, setSubmittingSangria] = useState(false);
+  const [historyFromDate, setHistoryFromDate] = useState("");
+  const [historyToDate, setHistoryToDate] = useState("");
+  const [historyCompany, setHistoryCompany] = useState("");
+  const [historyOperator, setHistoryOperator] = useState("");
+  const [historyStatus, setHistoryStatus] = useState("");
+  const [historySearch, setHistorySearch] = useState("");
+  const [selectedClosing, setSelectedClosing] = useState<CashClosingHistoryRow | null>(null);
 
   // ============================================================================
   // LOAD DATA
@@ -258,13 +289,15 @@ export default function CaixaPage() {
         ? supabase.from("vw_caixa_historico_operador").select("*").eq("operador_id", user.id).order("aberto_em", { ascending: false }).limit(6)
         : Promise.resolve({ data: [], error: null });
 
-      const [sessionResult, salesResult, paymentsResult, historyResult, companiesResult, driversResult] = await Promise.all([
+      const [sessionResult, salesResult, paymentsResult, historyResult, companiesResult, driversResult, closingHistoryResult, closingFallbackResult] = await Promise.all([
         supabase.from("caixa_sessoes").select("*").eq("status", "aberto").order("aberto_em", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("vw_caixa_vendas_lista").select("*").gte("created_at", todayIso).order("created_at", { ascending: false }).limit(50),
         supabase.from("vw_caixa_resumo_diario").select("total_dinheiro, total_debito, total_credito, total_pix, total_link_pagamento").maybeSingle(),
         historyQuery,
         supabase.from("empresas").select("id, nome").order("nome"),
         supabase.from("drivers").select("id, company_id, name, phone, truck_plate, active").eq("active", true).order("name"),
+        supabase.from("v_cash_closing_history").select("*").order("created_at", { ascending: false }).limit(150),
+        supabase.from("vw_caixa_historico_operador").select("*").order("aberto_em", { ascending: false }).limit(150),
       ]);
 
       const criticalError = sessionResult.error ?? salesResult.error;
@@ -284,9 +317,52 @@ export default function CaixaPage() {
       if (historyResult.error) console.warn("Erro ao carregar histórico do operador:", historyResult.error.message);
       if (companiesResult.error) console.warn("Erro ao carregar empresas:", companiesResult.error.message);
       if (driversResult.error) console.warn("Erro ao carregar motoristas:", driversResult.error.message);
+      if (closingHistoryResult.error) console.warn("Erro ao carregar histórico canônico:", closingHistoryResult.error.message);
+      if (closingFallbackResult.error) console.warn("Erro ao carregar histórico fallback:", closingFallbackResult.error.message);
 
       const session = (sessionResult.data ?? null) as CaixaSessao | null;
       const allSales = (salesResult.data ?? []) as CaixaVendaLista[];
+
+      const canonicalHistory = ((closingHistoryResult.data ?? []) as CashClosingHistoryRow[]).map((item) => ({
+        ...item,
+        total_informado: toNumber(item.total_informado),
+        total_lancado: toNumber(item.total_lancado),
+        diferenca: toNumber(item.diferenca),
+        valor_abertura: toNumber(item.valor_abertura),
+        total_pago: toNumber(item.total_pago),
+        total_estornado: toNumber(item.total_estornado),
+        total_sangria: toNumber(item.total_sangria),
+        total_reforco: toNumber(item.total_reforco),
+      }));
+
+      const fallbackHistory = ((closingFallbackResult.data ?? []) as any[]).map((item) => {
+        const totalInformado = toNumber(item.valor_fechamento_informado);
+        const totalLancado = toNumber(item.valor_abertura) + toNumber(item.total_pago) - toNumber(item.total_sangria) + toNumber(item.total_reforco);
+        const diferenca = Math.round((totalInformado - totalLancado) * 100) / 100;
+
+        return {
+          id: item.id,
+          date: String(item.fechado_em ?? item.aberto_em ?? "").slice(0, 10),
+          office_id: null,
+          user_id: item.operador_id ?? null,
+          operador: item.operador_nome ?? "Operador",
+          company: "Central Viagens",
+          total_informado: totalInformado,
+          total_lancado: totalLancado,
+          diferenca,
+          status: item.status === "aberto" ? "aberto" : diferenca === 0 ? "conferido" : diferenca > 0 ? "sobra" : "falta",
+          created_at: item.fechado_em ?? item.aberto_em,
+          codigo: item.codigo,
+          aberto_em: item.aberto_em,
+          fechado_em: item.fechado_em,
+          valor_abertura: toNumber(item.valor_abertura),
+          total_pago: toNumber(item.total_pago),
+          total_estornado: toNumber(item.total_estornado),
+          total_sangria: toNumber(item.total_sangria),
+          total_reforco: toNumber(item.total_reforco),
+          observacoes: item.observacoes ?? "",
+        } satisfies CashClosingHistoryRow;
+      });
 
       setOpenSession(session);
       setSales(allSales);
@@ -294,6 +370,7 @@ export default function CaixaPage() {
       setOperatorHistory(historyResult.data ?? []);
       setCompanies((companiesResult.data ?? []) as CaixaEmpresaOption[]);
       setDrivers((driversResult.data ?? []) as CaixaDriverOption[]);
+      setClosingHistory(canonicalHistory.length > 0 ? canonicalHistory : fallbackHistory);
 
       // Carregar movimentações e resumo da sessão
       if (session) {
@@ -404,6 +481,35 @@ export default function CaixaPage() {
   const totalSales = paidSales.reduce((sum, s) => sum + toNumber(s.valor_total), 0);
   const ticketMedio = paidSales.length ? totalSales / paidSales.length : 0;
   const operatorTotal = operatorHistory.reduce((sum: number, s: any) => sum + toNumber(s.total_pago), 0);
+
+  const historyCompanyOptions = useMemo(
+    () => Array.from(new Set(closingHistory.map((item) => item.company).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [closingHistory],
+  );
+
+  const historyOperatorOptions = useMemo(
+    () => Array.from(new Set(closingHistory.map((item) => item.operador).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [closingHistory],
+  );
+
+  const filteredClosingHistory = useMemo(() => {
+    const term = historySearch.trim().toLowerCase();
+
+    return closingHistory.filter((item) => {
+      const dateValue = String(item.date ?? item.created_at ?? "").slice(0, 10);
+      const matchesFrom = !historyFromDate || dateValue >= historyFromDate;
+      const matchesTo = !historyToDate || dateValue <= historyToDate;
+      const matchesCompany = !historyCompany || item.company === historyCompany;
+      const matchesOperator = !historyOperator || item.operador === historyOperator;
+      const matchesStatus = !historyStatus || item.status === historyStatus;
+      const matchesSearch = !term || [item.codigo, item.operador, item.company, item.status, item.observacoes]
+        .join(" ")
+        .toLowerCase()
+        .includes(term);
+
+      return matchesFrom && matchesTo && matchesCompany && matchesOperator && matchesStatus && matchesSearch;
+    });
+  }, [closingHistory, historyCompany, historyFromDate, historyOperator, historySearch, historyStatus, historyToDate]);
 
   // Valor esperado = abertura + dinheiro recebido - sangrias + reforços
   const expectedCashAmount = useMemo(() =>
@@ -871,6 +977,62 @@ export default function CaixaPage() {
     w.document.close(); w.focus(); w.print();
   };
 
+  const handleReprintStoredClosing = (item: CashClosingHistoryRow) => {
+    handlePrintClosingReport({
+      codigo: item.codigo,
+      aberto_em: item.aberto_em ?? item.created_at,
+      fechado_em: item.fechado_em ?? item.created_at,
+      valor_abertura: item.valor_abertura,
+      valor_fechamento_informado: item.total_informado,
+      expectedCash: item.total_lancado,
+      variance: item.diferenca,
+      operador: item.operador,
+      summary: {
+        ...emptySessionSummary,
+        totalPago: item.total_pago,
+        totalEstornado: item.total_estornado,
+        totalSangria: item.total_sangria,
+        totalReforco: item.total_reforco,
+      },
+      notes: item.observacoes ?? "",
+    });
+  };
+
+  const handleExportClosingHistoryCsv = () => {
+    if (typeof window === "undefined") return;
+    if (filteredClosingHistory.length === 0) {
+      setError("Não há fechamentos para exportar com os filtros atuais.");
+      return;
+    }
+
+    const header = ["codigo", "data", "operador", "empresa", "total_informado", "total_lancado", "diferenca", "status", "criado_em"];
+    const rows = filteredClosingHistory.map((item) => [
+      item.codigo,
+      String(item.date ?? ""),
+      item.operador,
+      item.company,
+      item.total_informado.toFixed(2),
+      item.total_lancado.toFixed(2),
+      item.diferenca.toFixed(2),
+      item.status,
+      item.created_at,
+    ]);
+
+    const csv = [header, ...rows]
+      .map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(";"))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `historico-fechamentos-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // ============================================================================
   // RENDER
   // ============================================================================
@@ -880,8 +1042,8 @@ export default function CaixaPage() {
       {/* HEADER */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", gap: "12px", flexWrap: "wrap" }}>
         <div>
-          <h2 style={{ fontSize: "20px", fontWeight: "700", color: "var(--text-primary)" }}>Caixa de Balcão</h2>
-          <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>Receba pagamentos em dinheiro, débito, crédito, PIX e link de pagamento.</p>
+          <h2 style={{ fontSize: "20px", fontWeight: "700", color: "var(--text-primary)" }}>Central Viagens — Caixa</h2>
+          <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>Recebimentos, repasses e histórico de fechamento em um único painel.</p>
         </div>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           <span className={`badge ${openSession ? "badge-success" : "badge-muted"}`}>
@@ -1356,9 +1518,152 @@ export default function CaixaPage() {
         </div>
       </div>
 
+      <div className="card" style={{ padding: 0, marginTop: "20px" }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+          <div>
+            <div className="card-title">Histórico de Fechamentos</div>
+            <div className="card-subtitle">Central Viagens · visão completa para admin e operador</div>
+          </div>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={handleExportClosingHistoryCsv}>📥 Exportar CSV</button>
+        </div>
+
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-subtle)", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "10px" }}>
+          <input type="text" placeholder="Buscar código, operador ou status..." value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} />
+          <input type="date" value={historyFromDate} onChange={(e) => setHistoryFromDate(e.target.value)} />
+          <input type="date" value={historyToDate} onChange={(e) => setHistoryToDate(e.target.value)} />
+          <select value={historyCompany} onChange={(e) => setHistoryCompany(e.target.value)}>
+            <option value="">Todas as empresas</option>
+            {historyCompanyOptions.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+          <select value={historyOperator} onChange={(e) => setHistoryOperator(e.target.value)}>
+            <option value="">Todos os operadores</option>
+            {historyOperatorOptions.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+          <select value={historyStatus} onChange={(e) => setHistoryStatus(e.target.value)}>
+            <option value="">Todos os status</option>
+            <option value="aberto">Aberto</option>
+            <option value="conferido">Conferido</option>
+            <option value="sobra">Sobra</option>
+            <option value="falta">Falta</option>
+          </select>
+        </div>
+
+        <div className="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Operador</th>
+                <th>Empresa</th>
+                <th>Total Informado</th>
+                <th>Total Lançado</th>
+                <th>Diferença</th>
+                <th>Status</th>
+                <th>Criado em</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredClosingHistory.length === 0 ? (
+                <tr>
+                  <td colSpan={9} style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)" }}>
+                    Nenhum fechamento encontrado para os filtros selecionados.
+                  </td>
+                </tr>
+              ) : (
+                filteredClosingHistory.map((item) => {
+                  const statusClass = item.status === "conferido"
+                    ? "badge-success"
+                    : item.status === "sobra"
+                      ? "badge-warning"
+                      : item.status === "falta"
+                        ? "badge-danger"
+                        : "badge-muted";
+
+                  return (
+                    <tr key={item.id}>
+                      <td style={{ fontSize: "12px" }}>
+                        <strong>{String(item.date ?? "—")}</strong>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{item.codigo}</div>
+                      </td>
+                      <td style={{ fontSize: "12px" }}>{item.operador}</td>
+                      <td style={{ fontSize: "12px" }}>{item.company}</td>
+                      <td><strong>{formatCurrencyBRL(item.total_informado)}</strong></td>
+                      <td style={{ fontSize: "12px" }}>{formatCurrencyBRL(item.total_lancado)}</td>
+                      <td style={{ fontSize: "12px", color: item.diferenca === 0 ? "#86efac" : item.diferenca > 0 ? "#93c5fd" : "#fca5a5" }}>
+                        {formatCurrencyBRL(Math.abs(item.diferenca))}
+                      </td>
+                      <td><span className={`badge ${statusClass}`}>{item.status}</span></td>
+                      <td style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDateTimeBR(item.created_at)}</td>
+                      <td>
+                        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelectedClosing(item)}>👁️ Ver</button>
+                          <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleReprintStoredClosing(item)}>🖨️ Reimprimir</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* ================================================================== */}
       {/* MODAIS                                                             */}
       {/* ================================================================== */}
+
+      {selectedClosing && (
+        <div className="modal-overlay" onClick={() => setSelectedClosing(null)}>
+          <div className="modal" style={{ maxWidth: "640px" }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">Fechamento {selectedClosing.codigo}</div>
+                <div className="modal-subtitle">Detalhes do histórico de fechamento</div>
+              </div>
+              <button type="button" className="btn btn-ghost btn-icon" onClick={() => setSelectedClosing(null)}>✕</button>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px", fontSize: "12px" }}>
+              <div className="card" style={{ margin: 0 }}>
+                <div><strong>Operador:</strong> {selectedClosing.operador}</div>
+                <div><strong>Empresa:</strong> {selectedClosing.company}</div>
+                <div><strong>Data:</strong> {String(selectedClosing.date ?? "—")}</div>
+                <div><strong>Status:</strong> {selectedClosing.status}</div>
+              </div>
+              <div className="card" style={{ margin: 0 }}>
+                <div><strong>Total informado:</strong> {formatCurrencyBRL(selectedClosing.total_informado)}</div>
+                <div><strong>Total lançado:</strong> {formatCurrencyBRL(selectedClosing.total_lancado)}</div>
+                <div><strong>Diferença:</strong> {formatCurrencyBRL(selectedClosing.diferenca)}</div>
+                <div><strong>Criado em:</strong> {formatDateTimeBR(selectedClosing.created_at)}</div>
+              </div>
+              <div className="card" style={{ margin: 0 }}>
+                <div><strong>Vendas pagas:</strong> {formatCurrencyBRL(selectedClosing.total_pago)}</div>
+                <div><strong>Estornos:</strong> {formatCurrencyBRL(selectedClosing.total_estornado)}</div>
+                <div><strong>Sangrias:</strong> {formatCurrencyBRL(selectedClosing.total_sangria)}</div>
+                <div><strong>Reforços:</strong> {formatCurrencyBRL(selectedClosing.total_reforco)}</div>
+              </div>
+              <div className="card" style={{ margin: 0 }}>
+                <div><strong>Abertura:</strong> {formatDateTimeBR(selectedClosing.aberto_em)}</div>
+                <div><strong>Fechamento:</strong> {formatDateTimeBR(selectedClosing.fechado_em)}</div>
+                <div><strong>Valor abertura:</strong> {formatCurrencyBRL(selectedClosing.valor_abertura)}</div>
+                <div><strong>Obs:</strong> {selectedClosing.observacoes || "—"}</div>
+              </div>
+            </div>
+
+            <div className="divider" />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setSelectedClosing(null)}>Fechar</button>
+              <button type="button" className="btn btn-primary" onClick={() => handleReprintStoredClosing(selectedClosing)}>🖨️ Reimprimir recibo</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: EDITAR VENDA */}
       {editingS && (
