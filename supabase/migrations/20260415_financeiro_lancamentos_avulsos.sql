@@ -30,6 +30,8 @@ end $$;
 -- ============================================================================
 
 create sequence if not exists public.financeiro_lancamentos_codigo_seq start with 1 increment by 1;
+grant usage, select on sequence public.financeiro_lancamentos_codigo_seq to authenticated;
+grant usage, select on sequence public.financeiro_lancamentos_codigo_seq to service_role;
 
 -- ============================================================================
 -- TABELA: Lançamentos manuais do financeiro

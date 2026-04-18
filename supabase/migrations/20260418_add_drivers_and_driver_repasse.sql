@@ -343,6 +343,8 @@ create policy caixa_movimentacoes_operador_insert_own on public.caixa_movimentac
 grant select, insert, update on public.drivers to authenticated;
 revoke delete on public.drivers from authenticated;
 grant select, insert, update on public.financeiro_lancamentos to authenticated;
+grant usage, select on sequence public.financeiro_lancamentos_codigo_seq to authenticated;
+grant usage, select on sequence public.financeiro_lancamentos_codigo_seq to service_role;
 grant select, insert, update on public.caixa_sessoes to authenticated;
 grant select, insert on public.caixa_movimentacoes to authenticated;
 grant select on public.vw_financeiro_lancamentos to authenticated;
