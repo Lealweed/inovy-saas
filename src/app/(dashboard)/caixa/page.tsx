@@ -481,6 +481,9 @@ export default function CaixaPage() {
   const totalSales = paidSales.reduce((sum, s) => sum + toNumber(s.valor_total), 0);
   const ticketMedio = paidSales.length ? totalSales / paidSales.length : 0;
   const operatorTotal = operatorHistory.reduce((sum: number, s: any) => sum + toNumber(s.total_pago), 0);
+  const currentHour = new Date().getHours();
+  const currentTurn = currentHour < 12 ? "Manhã" : currentHour < 18 ? "Tarde" : "Noite";
+  const latestPaidSale = paidSales[0] ?? null;
 
   const historyCompanyOptions = useMemo(
     () => Array.from(new Set(closingHistory.map((item) => item.company).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
@@ -1040,12 +1043,13 @@ export default function CaixaPage() {
   return (
     <div className="animate-fade-in">
       {/* HEADER */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", gap: "12px", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", gap: "12px", flexWrap: "wrap" }}>
         <div>
           <h2 style={{ fontSize: "20px", fontWeight: "700", color: "var(--text-primary)" }}>Central Viagens — Caixa</h2>
-          <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>Recebimentos, repasses e histórico de fechamento em um único painel.</p>
+          <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>Fluxo operacional do guichê com lançamento, conferência e fechamento em ordem prática.</p>
         </div>
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+          <span className="badge badge-muted">🕒 Turno: {currentTurn}</span>
           <span className={`badge ${openSession ? "badge-success" : "badge-muted"}`}>
             {openSession ? `Caixa ${openSession.codigo} aberto` : "Nenhum caixa aberto"}
           </span>
@@ -1081,25 +1085,29 @@ export default function CaixaPage() {
         ))}
       </div>
 
-      {/* LAYOUT PRINCIPAL */}
-      <div className="grid-3" style={{ gridTemplateColumns: "1.6fr 1fr", gap: "20px" }}>
+      <div style={{ marginBottom: "12px" }}>
+        <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
+          1. Bloco principal de lançamento
+        </div>
+      </div>
 
-        {/* COLUNA ESQUERDA */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      <div className="grid-3" style={{ gridTemplateColumns: "1.7fr 1fr", gap: "20px", alignItems: "start", marginBottom: "24px" }}>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
 
           {/* FORMULÁRIO DE VENDA */}
           <div className="card">
             <div className="card-header">
               <div>
-                <div className="card-title">Novo Atendimento de Caixa</div>
-                <div className="card-subtitle">Lance cobranças rápidas para clientes no balcão</div>
+                <div className="card-title">Lançamento principal do guichê</div>
+                <div className="card-subtitle">Preencha os dados principais, revise o cálculo em tempo real e então salve.</div>
               </div>
             </div>
 
             <form onSubmit={handleCreateSale} style={{ display: "flex", flexDirection: "column", gap: "16px", opacity: loading ? 0.7 : 1 }}>
               <div className="grid-2">
                 <div className="input-group">
-                  <label>Nome do Cliente</label>
+                  <label>Empresa / Cliente</label>
                   <input type="text" placeholder="Cliente balcão" value={saleForm.customerName} onChange={(e) => handleSaleFieldChange("customerName", e.target.value)} />
                 </div>
                 <div className="input-group">
@@ -1196,103 +1204,35 @@ export default function CaixaPage() {
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
                 <button type="button" className="btn btn-secondary" onClick={resetSaleForm}>Limpar</button>
                 <button type="submit" className="btn btn-primary" disabled={submittingSale || loading || !openSession}>
-                  {submittingSale ? "Registrando..." : "💸 Registrar cobrança"}
+                  {submittingSale ? "Salvando..." : "💾 Salvar"}
                 </button>
               </div>
             </form>
           </div>
 
-          {/* TABELA DE VENDAS */}
-          <div className="card" style={{ padding: 0 }}>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-subtle)" }}>
-              <div className="card-title">Movimentações de Hoje</div>
-              <div className="card-subtitle">Últimos recebimentos registrados no caixa</div>
-            </div>
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Código</th>
-                    <th>Cliente</th>
-                    <th>Serviço</th>
-                    <th>Pagamento</th>
-                    <th>Status</th>
-                    <th>Total</th>
-                    <th>Data</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr><td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)" }}>Carregando caixa...</td></tr>
-                  ) : sales.length === 0 ? (
-                    <tr><td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)" }}>Nenhuma venda lançada hoje.</td></tr>
-                  ) : (
-                    sales.map((sale) => {
-                      const st = saleStatusMap[sale.status] ?? saleStatusMap.pago;
-                      return (
-                        <tr key={sale.id}>
-                          <td>
-                            <strong style={{ fontFamily: "monospace", fontSize: "12px" }}>{sale.codigo}</strong>
-                            <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{sale.sessao_codigo}</div>
-                          </td>
-                          <td style={{ fontSize: "12px" }}>{sale.cliente_nome ?? "Cliente balcão"}</td>
-                          <td>
-                            <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{sale.descricao}</div>
-                            <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "capitalize" }}>{sale.categoria}</div>
-                          </td>
-                          <td style={{ fontSize: "11px", textTransform: "capitalize" }}>
-                            {(sale.formas_pagamento ?? "—").replaceAll("_", " ")}
-                            {sale.referencia_pagamento && <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>Ref.: {sale.referencia_pagamento}</div>}
-                          </td>
-                          <td><span className={`badge ${st.className}`}>{st.label}</span></td>
-                          <td><strong style={{ color: sale.status === "estornado" ? "#fca5a5" : "var(--brand-success)", fontSize: "12px" }}>{formatCurrencyBRL(sale.valor_total)}</strong></td>
-                          <td style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDateTimeBR(sale.created_at)}</td>
-                          <td>
-                            <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
-                              <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => handlePrintReceipt(sale)} title="Imprimir">🖨️</button>
-                              <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditModal(sale)} title="Editar" disabled={sale.status !== "pago"} style={{ opacity: sale.status === "pago" ? 1 : 0.35 }}>✏️</button>
-                              <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => openRefundModal(sale)} title="Estornar" disabled={sale.status !== "pago"} style={{ opacity: sale.status === "pago" ? 1 : 0.35 }}>↩️</button>
-                              <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => openDeleteModal(sale)} title="Excluir" style={{ opacity: 0.6 }}>🗑️</button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
 
-          {/* MOVIMENTAÇÕES (SANGRIA/REFORÇO) DA SESSÃO */}
-          {openSession && movimentacoes.length > 0 && (
-            <div className="card" style={{ padding: 0 }}>
-              <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-subtle)" }}>
-                <div className="card-title">Sangrias e Reforços</div>
-                <div className="card-subtitle">Movimentações de caixa da sessão {openSession.codigo}</div>
-              </div>
-              <div className="table-container">
-                <table>
-                  <thead><tr><th>Tipo</th><th>Valor</th><th>Motivo</th><th>Data</th></tr></thead>
-                  <tbody>
-                    {movimentacoes.map((m) => (
-                      <tr key={m.id}>
-                        <td><span className={`badge ${m.tipo === "sangria" ? "badge-danger" : "badge-success"}`}>{m.tipo === "sangria" ? "Sangria" : "Reforço"}</span></td>
-                        <td><strong style={{ color: m.tipo === "sangria" ? "#fca5a5" : "var(--brand-success)", fontSize: "12px" }}>{m.tipo === "sangria" ? "- " : "+ "}{formatCurrencyBRL(m.valor)}</strong></td>
-                        <td style={{ fontSize: "12px" }}>{m.motivo}</td>
-                        <td style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDateTimeBR(m.created_at)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* COLUNA DIREITA — SIDEBAR */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <div className="card-title">Ações operacionais</div>
+                <div className="card-subtitle">Atalhos críticos para uso no guichê</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <button type="button" className="btn btn-secondary" onClick={() => latestPaidSale && handlePrintReceipt(latestPaidSale)} disabled={!latestPaidSale}>
+                🖨️ Reimprimir último recibo
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={handleExportClosingHistoryCsv}>
+                📥 Exportar histórico do dia
+              </button>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                Use primeiro os botões de salvar e finalizar; os atalhos ficam aqui como apoio rápido.
+              </div>
+            </div>
+          </div>
 
           {/* CONTROLE DO CAIXA */}
           <div className="card">
@@ -1463,22 +1403,8 @@ export default function CaixaPage() {
             </form>
           </div>
 
-          {/* RESUMO DIÁRIO */}
           <div className="card">
-            <div className="card-header"><div><div className="card-title">Resumo por Forma de Pagamento</div><div className="card-subtitle">Totais do dia</div></div></div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {paymentOptions.map((o) => (
-                <div key={o.value} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ color: "var(--text-secondary)", fontSize: "12px" }}>{o.icon} {o.label}</span>
-                  <strong>{formatCurrencyBRL(totalsByMethod[o.value] ?? 0)}</strong>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* HISTÓRICO */}
-          <div className="card">
-            <div className="card-header"><div><div className="card-title">Histórico do Operador</div><div className="card-subtitle">Sessões de {currentUser?.email ?? "operador"}</div></div></div>
+            <div className="card-header"><div><div className="card-title">Histórico rápido do operador</div><div className="card-subtitle">Sessões recentes de {currentUser?.email ?? "operador"}</div></div></div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}><span style={{ color: "var(--text-muted)" }}>Sessões</span><strong>{operatorHistory.length}</strong></div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}><span style={{ color: "var(--text-muted)" }}>Total movimentado</span><strong>{formatCurrencyBRL(operatorTotal)}</strong></div>
@@ -1502,21 +1428,100 @@ export default function CaixaPage() {
               )}
             </div>
           </div>
-
-          {/* FLUXO RECOMENDADO */}
-          <div className="card">
-            <div className="card-header"><div><div className="card-title">Fluxo recomendado</div><div className="card-subtitle">Operação diária do balcão</div></div></div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "12px", color: "var(--text-secondary)" }}>
-              <div>1. Abra o caixa com o valor inicial disponível.</div>
-              <div>2. Registre cada atendimento com a forma de pagamento.</div>
-              <div>3. Use sangria para retiradas e reforço para entradas.</div>
-              <div>4. Imprima o comprovante para entregar ao cliente.</div>
-              <div>5. Use estorno com motivo para reverter cobranças.</div>
-              <div>6. Feche o caixa com conferência do valor em dinheiro.</div>
-            </div>
-          </div>
         </div>
       </div>
+
+      <div style={{ marginTop: "8px", marginBottom: "10px" }}>
+        <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
+          2. Bloco de ações operacionais
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: 0, marginBottom: "16px" }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-subtle)" }}>
+          <div className="card-title">Histórico rápido do dia</div>
+          <div className="card-subtitle">Últimos recebimentos registrados no caixa com ações imediatas</div>
+        </div>
+        <div className="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Cliente</th>
+                <th>Serviço</th>
+                <th>Pagamento</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th>Data</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)" }}>Carregando caixa...</td></tr>
+              ) : sales.length === 0 ? (
+                <tr><td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)" }}>Nenhuma venda lançada hoje.</td></tr>
+              ) : (
+                sales.map((sale) => {
+                  const st = saleStatusMap[sale.status] ?? saleStatusMap.pago;
+                  return (
+                    <tr key={sale.id}>
+                      <td>
+                        <strong style={{ fontFamily: "monospace", fontSize: "12px" }}>{sale.codigo}</strong>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{sale.sessao_codigo}</div>
+                      </td>
+                      <td style={{ fontSize: "12px" }}>{sale.cliente_nome ?? "Cliente balcão"}</td>
+                      <td>
+                        <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{sale.descricao}</div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "capitalize" }}>{sale.categoria}</div>
+                      </td>
+                      <td style={{ fontSize: "11px", textTransform: "capitalize" }}>
+                        {(sale.formas_pagamento ?? "—").replaceAll("_", " ")}
+                        {sale.referencia_pagamento && <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>Ref.: {sale.referencia_pagamento}</div>}
+                      </td>
+                      <td><span className={`badge ${st.className}`}>{st.label}</span></td>
+                      <td><strong style={{ color: sale.status === "estornado" ? "#fca5a5" : "var(--brand-success)", fontSize: "12px" }}>{formatCurrencyBRL(sale.valor_total)}</strong></td>
+                      <td style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDateTimeBR(sale.created_at)}</td>
+                      <td>
+                        <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                          <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => handlePrintReceipt(sale)} title="Imprimir">🖨️</button>
+                          <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditModal(sale)} title="Editar" disabled={sale.status !== "pago"} style={{ opacity: sale.status === "pago" ? 1 : 0.35 }}>✏️</button>
+                          <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => openRefundModal(sale)} title="Estornar" disabled={sale.status !== "pago"} style={{ opacity: sale.status === "pago" ? 1 : 0.35 }}>↩️</button>
+                          <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => openDeleteModal(sale)} title="Excluir" style={{ opacity: 0.6 }}>🗑️</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {openSession && movimentacoes.length > 0 && (
+        <div className="card" style={{ padding: 0, marginBottom: "20px" }}>
+          <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-subtle)" }}>
+            <div className="card-title">Sangrias e Reforços</div>
+            <div className="card-subtitle">Movimentações operacionais da sessão {openSession.codigo}</div>
+          </div>
+          <div className="table-container">
+            <table>
+              <thead><tr><th>Tipo</th><th>Valor</th><th>Motivo</th><th>Data</th></tr></thead>
+              <tbody>
+                {movimentacoes.map((m) => (
+                  <tr key={m.id}>
+                    <td><span className={`badge ${m.tipo === "sangria" ? "badge-danger" : "badge-success"}`}>{m.tipo === "sangria" ? "Sangria" : "Reforço"}</span></td>
+                    <td><strong style={{ color: m.tipo === "sangria" ? "#fca5a5" : "var(--brand-success)", fontSize: "12px" }}>{m.tipo === "sangria" ? "- " : "+ "}{formatCurrencyBRL(m.valor)}</strong></td>
+                    <td style={{ fontSize: "12px" }}>{m.motivo}</td>
+                    <td style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDateTimeBR(m.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ padding: 0, marginTop: "20px" }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
@@ -1611,6 +1616,36 @@ export default function CaixaPage() {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div style={{ marginTop: "24px", marginBottom: "10px" }}>
+        <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
+          3. Bloco auxiliar no final
+        </div>
+      </div>
+
+      <div className="grid-2" style={{ gap: "16px", marginBottom: "24px" }}>
+        <div className="card">
+          <div className="card-header"><div><div className="card-title">Resumo por Forma de Pagamento</div><div className="card-subtitle">Consulta auxiliar do dia</div></div></div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {paymentOptions.map((o) => (
+              <div key={o.value} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ color: "var(--text-secondary)", fontSize: "12px" }}>{o.icon} {o.label}</span>
+                <strong>{formatCurrencyBRL(totalsByMethod[o.value] ?? 0)}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header"><div><div className="card-title">Dicas, observações e ajuda</div><div className="card-subtitle">Apoio visual no final da página</div></div></div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "12px", color: "var(--text-secondary)" }}>
+            <div>• Abra o caixa antes de iniciar os lançamentos do turno.</div>
+            <div>• Revise o cálculo em tempo real antes de salvar ou finalizar.</div>
+            <div>• Use reimpressão apenas quando houver necessidade operacional.</div>
+            <div>• Em caso de diferença, registre observações claras no fechamento.</div>
+          </div>
         </div>
       </div>
 
