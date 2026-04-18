@@ -5,6 +5,7 @@ const routeTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": { title: "Dashboard", subtitle: "Visão geral da operação" },
   "/encomendas": { title: "Encomendas", subtitle: "Gerenciamento de pacotes" },
   "/logistica": { title: "Retirada & Entrega", subtitle: "Controle logístico" },
+  "/motoristas": { title: "Motoristas", subtitle: "Cadastro e vínculo por empresa" },
   "/empresas": { title: "Empresas Parceiras", subtitle: "Gestão de parceiros" },
   "/financeiro": { title: "Financeiro", subtitle: "Repasses e comissões" },
   "/relatorios": { title: "Relatórios", subtitle: "Análises e exportações" },

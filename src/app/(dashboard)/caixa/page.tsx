@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrencyBRL } from "@/lib/formatters";
 
@@ -82,6 +82,20 @@ interface SessionSummary {
   link_pagamento: number;
 }
 
+interface CaixaEmpresaOption {
+  id: string;
+  nome: string;
+}
+
+interface CaixaDriverOption {
+  id: string;
+  company_id: string;
+  name: string;
+  phone: string | null;
+  truck_plate: string | null;
+  active: boolean;
+}
+
 // ============================================================================
 // CONSTANTES
 // ============================================================================
@@ -109,6 +123,14 @@ const initialSaleForm = {
   unitPrice: "0",
   discount: "0",
   surcharge: "0",
+  notes: "",
+};
+
+const initialDriverRepasseForm = {
+  companyId: "",
+  driverId: "",
+  amount: "",
+  paymentMethod: "pix" as PaymentMethod,
   notes: "",
 };
 
@@ -171,8 +193,11 @@ export default function CaixaPage() {
   const [operatorHistory, setOperatorHistory] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string } | null>(null);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary>(emptySessionSummary);
+  const [companies, setCompanies] = useState<CaixaEmpresaOption[]>([]);
+  const [drivers, setDrivers] = useState<CaixaDriverOption[]>([]);
 
   // UI
+  const messageRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [submittingSale, setSubmittingSale] = useState(false);
   const [openingSession, setOpeningSession] = useState(false);
@@ -188,6 +213,8 @@ export default function CaixaPage() {
   const [closingNotes, setClosingNotes] = useState("");
   const [saleForm, setSaleForm] = useState(initialSaleForm);
   const [paymentLines, setPaymentLines] = useState<PaymentLine[]>([createPaymentLine("pix")]);
+  const [repasseForm, setRepasseForm] = useState(initialDriverRepasseForm);
+  const [submittingDriverRepasse, setSubmittingDriverRepasse] = useState(false);
 
   // Modais
   const [editingS, setEditingS] = useState<CaixaVendaLista | null>(null);
@@ -209,90 +236,111 @@ export default function CaixaPage() {
 
   // ============================================================================
   // LOAD DATA
+  // Auto-scroll ao exibir mensagem
+  useEffect(() => {
+    if ((error || success) && messageRef.current) {
+      messageRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [error, success]);
+
   // ============================================================================
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    setError("");
 
-    const todayIso = getTodayISOLocal();
+    try {
+      const todayIso = getTodayISOLocal();
 
-    const { data: { user } } = await supabase.auth.getUser();
-    setCurrentUser(user ? { id: user.id, email: user.email ?? "operador@inovy.com" } : null);
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user ? { id: user.id, email: user.email ?? "operador@inovy.com" } : null);
 
-    const historyQuery = user?.id
-      ? supabase.from("vw_caixa_historico_operador").select("*").eq("operador_id", user.id).order("aberto_em", { ascending: false }).limit(6)
-      : Promise.resolve({ data: [], error: null });
+      const historyQuery = user?.id
+        ? supabase.from("vw_caixa_historico_operador").select("*").eq("operador_id", user.id).order("aberto_em", { ascending: false }).limit(6)
+        : Promise.resolve({ data: [], error: null });
 
-    const [sessionResult, salesResult, paymentsResult, historyResult] = await Promise.all([
-      supabase.from("caixa_sessoes").select("*").eq("status", "aberto").order("aberto_em", { ascending: false }).limit(1).maybeSingle(),
-      supabase.from("vw_caixa_vendas_lista").select("*").gte("created_at", todayIso).order("created_at", { ascending: false }).limit(50),
-      supabase.from("vw_caixa_resumo_diario").select("total_dinheiro, total_debito, total_credito, total_pix, total_link_pagamento").maybeSingle(),
-      historyQuery,
-    ]);
-
-    const firstError = sessionResult.error ?? salesResult.error ?? paymentsResult.error ?? historyResult.error;
-    if (firstError) {
-      const message = firstError.message ?? "Erro ao carregar o módulo de caixa.";
-      const errorCode = String((firstError as any).code ?? "");
-      const isTableMissing = errorCode === "42P01";
-      setError(isTableMissing
-        ? "O módulo de caixa ainda não foi criado no banco. Rode os SQLs de migrations no Supabase SQL Editor."
-        : `Erro ao carregar o caixa: ${message}${errorCode ? ` (código ${errorCode})` : ""}`);
-      setLoading(false);
-      return;
-    }
-
-    const session = (sessionResult.data ?? null) as CaixaSessao | null;
-    const allSales = (salesResult.data ?? []) as CaixaVendaLista[];
-
-    setOpenSession(session);
-    setSales(allSales);
-    setDailySummary(paymentsResult.data ?? {});
-    setOperatorHistory(historyResult.data ?? []);
-
-    // Carregar movimentações e resumo da sessão
-    if (session) {
-      const sessionSales = allSales.filter((s) => s.sessao_id === session.id);
-      const paid = sessionSales.filter((s) => s.status === "pago");
-      const refunded = sessionSales.filter((s) => s.status === "estornado");
-
-      const paidIds = paid.length > 0 ? paid.map((s) => s.id) : ["00000000-0000-0000-0000-000000000000"];
-
-      const [payResult, movResult] = await Promise.all([
-        supabase.from("caixa_pagamentos").select("forma_pagamento, valor, troco, venda_id").in("venda_id", paidIds),
-        supabase.from("caixa_movimentacoes").select("*").eq("sessao_id", session.id).order("created_at", { ascending: false }),
+      const [sessionResult, salesResult, paymentsResult, historyResult, companiesResult, driversResult] = await Promise.all([
+        supabase.from("caixa_sessoes").select("*").eq("status", "aberto").order("aberto_em", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("vw_caixa_vendas_lista").select("*").gte("created_at", todayIso).order("created_at", { ascending: false }).limit(50),
+        supabase.from("vw_caixa_resumo_diario").select("total_dinheiro, total_debito, total_credito, total_pix, total_link_pagamento").maybeSingle(),
+        historyQuery,
+        supabase.from("empresas").select("id, nome").order("nome"),
+        supabase.from("drivers").select("id, company_id, name, phone, truck_plate, active").eq("active", true).order("name"),
       ]);
 
-      const movs = (movResult.data ?? []) as CaixaMovimentacao[];
-      setMovimentacoes(movs);
+      const criticalError = sessionResult.error ?? salesResult.error;
+      if (criticalError) {
+        const message = criticalError.message ?? "Erro ao carregar o módulo de caixa.";
+        const errorCode = String((criticalError as any).code ?? "");
+        const isTableMissing = errorCode === "42P01";
+        setError(isTableMissing
+          ? "O módulo de caixa ainda não foi criado no banco. Rode os SQLs de migrations no Supabase SQL Editor."
+          : `Erro ao carregar o caixa: ${message}${errorCode ? ` (código ${errorCode})` : ""}`);
+        setLoading(false);
+        return;
+      }
 
-      const byMethod: Record<string, number> = { dinheiro: 0, debito: 0, credito: 0, pix: 0, link_pagamento: 0 };
-      (payResult.data ?? []).forEach((p: any) => {
-        const key = p.forma_pagamento as string;
-        if (key in byMethod) byMethod[key] += toNumber(p.valor) - toNumber(p.troco);
-      });
+      // Queries não-críticas: falhas não bloqueiam o módulo
+      if (paymentsResult.error) console.warn("Erro ao carregar resumo diário:", paymentsResult.error.message);
+      if (historyResult.error) console.warn("Erro ao carregar histórico do operador:", historyResult.error.message);
+      if (companiesResult.error) console.warn("Erro ao carregar empresas:", companiesResult.error.message);
+      if (driversResult.error) console.warn("Erro ao carregar motoristas:", driversResult.error.message);
 
-      const totalSangria = movs.filter((m) => m.tipo === "sangria").reduce((s, m) => s + toNumber(m.valor), 0);
-      const totalReforco = movs.filter((m) => m.tipo === "reforco").reduce((s, m) => s + toNumber(m.valor), 0);
+      const session = (sessionResult.data ?? null) as CaixaSessao | null;
+      const allSales = (salesResult.data ?? []) as CaixaVendaLista[];
 
-      setSessionSummary({
-        totalVendas: sessionSales.length,
-        totalPago: paid.reduce((sum, s) => sum + toNumber(s.valor_total), 0),
-        totalEstornado: refunded.reduce((sum, s) => sum + toNumber(s.valor_total), 0),
-        qtdPago: paid.length,
-        qtdEstornado: refunded.length,
-        totalSangria,
-        totalReforco,
-        dinheiro: byMethod.dinheiro,
-        debito: byMethod.debito,
-        credito: byMethod.credito,
-        pix: byMethod.pix,
-        link_pagamento: byMethod.link_pagamento,
-      });
-    } else {
-      setMovimentacoes([]);
-      setSessionSummary(emptySessionSummary);
+      setOpenSession(session);
+      setSales(allSales);
+      setDailySummary(paymentsResult.data ?? {});
+      setOperatorHistory(historyResult.data ?? []);
+      setCompanies((companiesResult.data ?? []) as CaixaEmpresaOption[]);
+      setDrivers((driversResult.data ?? []) as CaixaDriverOption[]);
+
+      // Carregar movimentações e resumo da sessão
+      if (session) {
+        const sessionSales = allSales.filter((s) => s.sessao_id === session.id);
+        const paid = sessionSales.filter((s) => s.status === "pago");
+        const refunded = sessionSales.filter((s) => s.status === "estornado");
+
+        const paidIds = paid.length > 0 ? paid.map((s) => s.id) : ["00000000-0000-0000-0000-000000000000"];
+
+        const [payResult, movResult] = await Promise.all([
+          supabase.from("caixa_pagamentos").select("forma_pagamento, valor, troco, venda_id").in("venda_id", paidIds),
+          supabase.from("caixa_movimentacoes").select("*").eq("sessao_id", session.id).order("created_at", { ascending: false }),
+        ]);
+
+        const movs = (movResult.data ?? []) as CaixaMovimentacao[];
+        setMovimentacoes(movs);
+
+        const byMethod: Record<string, number> = { dinheiro: 0, debito: 0, credito: 0, pix: 0, link_pagamento: 0 };
+        (payResult.data ?? []).forEach((p: any) => {
+          const key = p.forma_pagamento as string;
+          if (key in byMethod) byMethod[key] += toNumber(p.valor) - toNumber(p.troco);
+        });
+
+        const totalSangria = movs.filter((m) => m.tipo === "sangria").reduce((s, m) => s + toNumber(m.valor), 0);
+        const totalReforco = movs.filter((m) => m.tipo === "reforco").reduce((s, m) => s + toNumber(m.valor), 0);
+
+        setSessionSummary({
+          totalVendas: sessionSales.length,
+          totalPago: paid.reduce((sum, s) => sum + toNumber(s.valor_total), 0),
+          totalEstornado: refunded.reduce((sum, s) => sum + toNumber(s.valor_total), 0),
+          qtdPago: paid.length,
+          qtdEstornado: refunded.length,
+          totalSangria,
+          totalReforco,
+          dinheiro: byMethod.dinheiro,
+          debito: byMethod.debito,
+          credito: byMethod.credito,
+          pix: byMethod.pix,
+          link_pagamento: byMethod.link_pagamento,
+        });
+      } else {
+        setMovimentacoes([]);
+        setSessionSummary(emptySessionSummary);
+      }
+    } catch (err) {
+      console.error("Erro inesperado no loadData:", err);
+      setError("Erro inesperado ao carregar dados do caixa. Recarregue a página.");
     }
 
     setLoading(false);
@@ -341,6 +389,16 @@ export default function CaixaPage() {
     link_pagamento: toNumber(dailySummary.total_link_pagamento),
   }), [dailySummary]);
 
+  const availableRepasseDrivers = useMemo(
+    () => drivers.filter((driver) => !repasseForm.companyId || driver.company_id === repasseForm.companyId),
+    [drivers, repasseForm.companyId],
+  );
+
+  const selectedRepasseDriver = useMemo(
+    () => drivers.find((driver) => driver.id === repasseForm.driverId) ?? null,
+    [drivers, repasseForm.driverId],
+  );
+
   const paidSales = sales.filter((s) => s.status === "pago");
   const refundedSales = sales.filter((s) => s.status === "estornado");
   const totalSales = paidSales.reduce((sum, s) => sum + toNumber(s.valor_total), 0);
@@ -378,6 +436,78 @@ export default function CaixaPage() {
 
   const handleRemovePaymentLine = (lineId: string) => {
     setPaymentLines((prev) => (prev.length === 1 ? prev : prev.filter((l) => l.id !== lineId)));
+  };
+
+  const handleRepasseFieldChange = (field: keyof typeof initialDriverRepasseForm, value: string) => {
+    setRepasseForm((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "companyId") next.driverId = "";
+      return next;
+    });
+  };
+
+  const handleSaveDriverRepasse = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmittingDriverRepasse(true);
+    setError("");
+    setSuccess("");
+
+    if (!openSession) {
+      setError("Abra o caixa antes de registrar um repasse de motorista.");
+      setSubmittingDriverRepasse(false);
+      return;
+    }
+
+    if (!repasseForm.companyId || !repasseForm.driverId || toNumber(repasseForm.amount) <= 0) {
+      setError("Selecione empresa, motorista e informe um valor válido.");
+      setSubmittingDriverRepasse(false);
+      return;
+    }
+
+    const driver = drivers.find((item) => item.id === repasseForm.driverId);
+    const company = companies.find((item) => item.id === repasseForm.companyId);
+
+    if (!driver) {
+      setError("Motorista não encontrado para o repasse informado.");
+      setSubmittingDriverRepasse(false);
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const today = new Date().toISOString().slice(0, 10);
+    const referenceMonth = today.slice(0, 7);
+
+    const { error: insertError } = await supabase.from("financeiro_lancamentos").insert({
+      tipo: "saida",
+      categoria: "repasse_motorista",
+      kind: "repasse_motorista",
+      driver_id: driver.id,
+      company_id: repasseForm.companyId,
+      favorecido_nome: driver.name,
+      descricao: `Repasse de motorista — ${driver.name}`,
+      valor: toNumber(repasseForm.amount),
+      payment_method: repasseForm.paymentMethod,
+      referencia_mes: `${referenceMonth}-01`,
+      data_lancamento: today,
+      data_pagamento: today,
+      status: "pago",
+      observacoes: repasseForm.notes || `Repasse registrado no caixa${company ? ` para ${company.nome}` : ""}.`,
+      created_by: user?.id ?? null,
+    });
+
+    if (insertError) {
+      setError(insertError.message);
+      setSubmittingDriverRepasse(false);
+      return;
+    }
+
+    setRepasseForm(initialDriverRepasseForm);
+    setSubmittingDriverRepasse(false);
+    setSuccess(`Repasse para ${driver.name} registrado com sucesso.`);
+    await loadData();
   };
 
   // ============================================================================
@@ -473,55 +603,61 @@ export default function CaixaPage() {
       if (!hasCash) { setError("Troco só é permitido para pagamentos em dinheiro."); setSubmittingSale(false); return; }
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
 
-    const { data: sale, error: saleError } = await supabase.from("caixa_vendas").insert({
-      sessao_id: openSession.id,
-      cliente_nome: saleForm.customerName || null,
-      cliente_documento: saleForm.customerDocument || null,
-      descricao: saleForm.description,
-      categoria: saleForm.category,
-      quantidade: Math.max(1, Math.round(toNumber(saleForm.quantity))),
-      valor_unitario: toNumber(saleForm.unitPrice),
-      desconto: toNumber(saleForm.discount),
-      acrescimo: toNumber(saleForm.surcharge),
-      observacoes: saleForm.notes || null,
-      created_by: user?.id ?? null,
-    }).select("id, codigo, valor_total").single();
-
-    if (saleError || !sale) { setError(saleError?.message ?? "Não foi possível registrar a venda."); setSubmittingSale(false); return; }
-
-    // Calcular troco para pagamento em dinheiro
-    const saleValue = toNumber(sale.valor_total);
-    let remainingChange = Math.max(paymentTotal - saleValue, 0);
-
-    const paymentsPayload = filledPayments.map((line) => {
-      let troco = 0;
-      if (line.method === "dinheiro" && remainingChange > 0) {
-        troco = Math.min(remainingChange, toNumber(line.amount));
-        remainingChange -= troco;
-      }
-      return {
-        venda_id: sale.id,
-        forma_pagamento: line.method,
-        valor: toNumber(line.amount),
-        troco: Math.round(troco * 100) / 100,
-        referencia_externa: line.reference || null,
+      const { data: sale, error: saleError } = await supabase.from("caixa_vendas").insert({
+        sessao_id: openSession.id,
+        cliente_nome: saleForm.customerName || null,
+        cliente_documento: saleForm.customerDocument || null,
+        descricao: saleForm.description,
+        categoria: saleForm.category,
+        quantidade: Math.max(1, Math.round(toNumber(saleForm.quantity))),
+        valor_unitario: toNumber(saleForm.unitPrice),
+        desconto: toNumber(saleForm.discount),
+        acrescimo: toNumber(saleForm.surcharge),
         observacoes: saleForm.notes || null,
-      };
-    });
+        created_by: user?.id ?? null,
+      }).select("id, codigo, valor_total").single();
 
-    const { error: paymentsError } = await supabase.from("caixa_pagamentos").insert(paymentsPayload);
+      if (saleError || !sale) { setError(saleError?.message ?? "Não foi possível registrar a venda."); setSubmittingSale(false); return; }
 
-    if (paymentsError) {
-      await supabase.from("caixa_vendas").delete().eq("id", sale.id);
-      setError(paymentsError.message); setSubmittingSale(false); return;
+      // Calcular troco para pagamento em dinheiro
+      const saleValue = toNumber(sale.valor_total);
+      let remainingChange = Math.max(paymentTotal - saleValue, 0);
+
+      const paymentsPayload = filledPayments.map((line) => {
+        let troco = 0;
+        if (line.method === "dinheiro" && remainingChange > 0) {
+          troco = Math.min(remainingChange, toNumber(line.amount));
+          remainingChange -= troco;
+        }
+        return {
+          venda_id: sale.id,
+          forma_pagamento: line.method,
+          valor: toNumber(line.amount),
+          troco: Math.round(troco * 100) / 100,
+          referencia_externa: line.reference || null,
+          observacoes: saleForm.notes || null,
+        };
+      });
+
+      const { error: paymentsError } = await supabase.from("caixa_pagamentos").insert(paymentsPayload);
+
+      if (paymentsError) {
+        await supabase.from("caixa_vendas").delete().eq("id", sale.id);
+        setError(paymentsError.message); setSubmittingSale(false); return;
+      }
+
+      resetSaleForm();
+      setSuccess(`Venda ${sale.codigo} registrada.${changeAmount > 0 ? ` Troco: ${formatCurrencyBRL(changeAmount)}` : ""}`);
+      setSubmittingSale(false);
+      await loadData();
+    } catch (err) {
+      console.error("Erro ao registrar venda:", err);
+      setError(err instanceof Error ? err.message : "Erro inesperado ao registrar a venda. Tente novamente.");
+      setSubmittingSale(false);
     }
-
-    resetSaleForm();
-    setSuccess(`Venda ${sale.codigo} registrada.${changeAmount > 0 ? ` Troco: ${formatCurrencyBRL(changeAmount)}` : ""}`);
-    setSubmittingSale(false);
-    await loadData();
   };
 
   // ============================================================================
@@ -756,7 +892,7 @@ export default function CaixaPage() {
 
       {/* MENSAGENS */}
       {(error || success) && (
-        <div className="card" style={{ marginBottom: "16px", borderColor: error ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)", color: error ? "#fca5a5" : "#86efac" }}>
+        <div ref={messageRef} className="card" style={{ marginBottom: "16px", borderColor: error ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)", color: error ? "#fca5a5" : "#86efac" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>{error || success}</span>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setError(""); setSuccess(""); }} style={{ fontSize: "16px", padding: "0 6px" }}>✕</button>
@@ -1095,6 +1231,74 @@ export default function CaixaPage() {
                 )}
               </form>
             )}
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <div className="card-title">Repasse motorista</div>
+                <div className="card-subtitle">Saída vinculada à empresa e ao motorista</div>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveDriverRepasse} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div className="input-group">
+                <label>Empresa *</label>
+                <select value={repasseForm.companyId} onChange={(e) => handleRepasseFieldChange("companyId", e.target.value)} required>
+                  <option value="">Selecione</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>{company.nome}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="input-group">
+                <label>Motorista *</label>
+                <select value={repasseForm.driverId} onChange={(e) => handleRepasseFieldChange("driverId", e.target.value)} required>
+                  <option value="">Selecione</option>
+                  {availableRepasseDrivers.map((driver) => (
+                    <option key={driver.id} value={driver.id}>{driver.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedRepasseDriver && (
+                <div style={{ padding: "10px 12px", borderRadius: "10px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", fontSize: "11px", color: "var(--text-secondary)" }}>
+                  <div>📱 {selectedRepasseDriver.phone || "Telefone não informado"}</div>
+                  <div>🪪 {selectedRepasseDriver.truck_plate || "Placa não informada"}</div>
+                </div>
+              )}
+
+              <div className="grid-2">
+                <div className="input-group">
+                  <label>Valor *</label>
+                  <input type="number" min="0.01" step="0.01" value={repasseForm.amount} onChange={(e) => handleRepasseFieldChange("amount", e.target.value)} placeholder="0.00" required />
+                </div>
+                <div className="input-group">
+                  <label>Forma de pagamento *</label>
+                  <select value={repasseForm.paymentMethod} onChange={(e) => handleRepasseFieldChange("paymentMethod", e.target.value)}>
+                    {paymentOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="input-group">
+                <label>Observações</label>
+                <textarea rows={2} style={{ resize: "none" }} value={repasseForm.notes} onChange={(e) => handleRepasseFieldChange("notes", e.target.value)} placeholder="Ex.: rota, acerto semanal, adiantamento..." />
+              </div>
+
+              <button type="submit" className="btn btn-primary" disabled={submittingDriverRepasse || !openSession}>
+                {submittingDriverRepasse ? "Salvando..." : "🚚 Salvar repasse motorista"}
+              </button>
+
+              {!openSession && (
+                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                  Abra uma sessão de caixa para liberar esse lançamento.
+                </div>
+              )}
+            </form>
           </div>
 
           {/* RESUMO DIÁRIO */}

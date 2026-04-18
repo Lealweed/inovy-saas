@@ -19,6 +19,7 @@ const mainNavItems: NavItem[] = [
   { icon: "⬡", label: "Dashboard", href: "/dashboard" },
   { icon: "📦", label: "Encomendas", href: "/encomendas", badge: 12 },
   { icon: "🚚", label: "Retirada & Entrega", href: "/logistica" },
+  { icon: "🛣️", label: "Motoristas", href: "/motoristas" },
   { icon: "🏢", label: "Empresas Parceiras", href: "/empresas" },
 ];
 
